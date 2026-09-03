@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Charte Transakauto : noir, magenta #EC008C, fond bleuté clair, Poppins.
+   Valeurs relevées sur la charte du réseau (transakauto.com). */
+@theme {
+  --color-ink: #000000;
+  --color-ink-soft: #1e1e1e;
+  --color-graphite: #3c4049;
+  --color-muted: #8e949d;
+  --color-line: #e2e7f1;
+  --color-paper: #f5f9ff;
+  --color-card: #ffffff;
+  --color-accent: #ec008c;
+  --color-accent-strong: #c40074;
+  /* Assez sombre pour rester lisible sur fond clair (contraste AA). */
+  --color-accent-ink: #a8005f;
+  --color-accent-soft: #fde8f4;
+
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  /* `clip` plutôt que `hidden` : ne casse pas le `sticky` du header. */
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+/* Les flèches natives des champs number rognent la valeur sur mobile. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
