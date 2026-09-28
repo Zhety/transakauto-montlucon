@@ -9,6 +9,8 @@
     "test:mail": "node --env-file=.env.local scripts/test-mail.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.2",
     "next": "^15.5.0",
     "nodemailer": "^9.0.1",
     "react": "^19.0.0",

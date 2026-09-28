@@ -235,6 +235,44 @@ Conseil à la vente
 
 Ne pas exclure `occasion` : beaucoup de vendeurs écrivent « vendre ma voiture d'occasion ».
 
+## Tableau des leads
+
+Outil interne servi sur `leads.transakautomontlucon.com` : un middleware réécrit ce sous-domaine
+vers `/board`, le site public et le tableau vivent donc dans le même déploiement. Les pages
+`/board*` n'ont ni en-tête, ni pied de page, ni balise publicitaire, et sont en `noindex`.
+
+- **Connexion** : Supabase Auth, email + mot de passe. Un compte doit exister dans
+  Authentication → Users **et** être déclaré dans la table `members`, sinon les règles RLS ne
+  laissent rien voir.
+- **Kanban** : quatre colonnes — À traiter, Ne répond pas, Non RDV, Oui RDV.
+- **Temps réel** : une demande envoyée depuis le site apparaît sans rafraîchir.
+- **Fiche détaillée** : elle réutilise `leadRows()`, le récapitulatif des emails.
+
+### Mise en route
+
+1. Créer un projet Supabase **propre à Montluçon** — ne pas réutiliser celui de Metz, la table
+   `leads` n'a pas de colonne agence et les demandes se mélangeraient.
+2. Exécuter [`supabase/schema.sql`](supabase/schema.sql) dans le SQL Editor.
+3. Renseigner `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` et
+   `SUPABASE_SERVICE_ROLE_KEY` en local et dans Vercel.
+4. Créer les comptes dans Authentication → Users, puis les insérer dans `members` (l'`id` est
+   celui du compte).
+5. Chez OVH, ajouter un `CNAME` `leads` vers `cname.vercel-dns.com.` (le domaine est déjà
+   rattaché au projet Vercel).
+
+La route `/api/lead` écrit en base avec la clé de service, en parallèle de l'envoi des emails :
+si Supabase est indisponible, la demande part quand même par email.
+
+### Déploiement depuis ce dossier
+
+Le projet Vercel appartient à l'équipe `transak-metz` (compte de François). Depuis que le dossier
+est un dépôt Git au nom de Théo, `npx vercel --prod` est **refusé** : « the commit author doesn't
+have permission to create deployments for this project ». Deux contournements :
+
+- ajouter le compte GitHub/Vercel de Théo à l'équipe `transak-metz` (solution durable) ;
+- ou masquer le dossier Git le temps du déploiement :
+  `mv .git .git-off && npx vercel --yes --prod; mv .git-off .git`
+
 ## Mise en ligne — reste à faire
 
 Le site est complet et fonctionnel en local. Avant la mise en production :
