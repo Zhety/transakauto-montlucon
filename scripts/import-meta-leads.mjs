@@ -85,7 +85,13 @@ function toRow(lead, formName) {
   }
 }
 
-const pages = await graph('me/accounts?fields=id,name')
+/*
+ * Un jeton d'utilisateur système ne renvoie pas toujours les Pages via
+ * `me/accounts` : META_PAGE_ID permet alors de viser la Page directement.
+ */
+const pages = process.env.META_PAGE_ID
+  ? { data: [await graph(`${process.env.META_PAGE_ID}?fields=id,name`)] }
+  : await graph('me/accounts?fields=id,name')
 let total = 0
 let inserted = 0
 
