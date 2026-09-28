@@ -51,13 +51,38 @@ function toNumber(value) {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
+
+/**
+ * Un formulaire Meta ne demande pas toujours le nom : Meta l'affiche depuis le
+ * profil Facebook, mais ne le transmet pas par l'API. On le reconstitue depuis
+ * l'email — « jonathan.bousard@… » donne « Jonathan Bousard » — plutôt que de
+ * remplir le tableau de fiches « Inconnu ».
+ */
+function nameFromEmail(email) {
+  if (!email) return null
+  const local = email.split('@')[0]
+  const parts = local
+    .split(/[._\-+]+/)
+    .map((part) => part.replace(/\d+/g, ''))
+    .filter((part) => part.length > 2)
+  if (!parts.length) return null
+  return parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+}
+
 function splitName(fields) {
   const first = pick(fields, 'first_name', 'prenom', 'prénom')
   const last = pick(fields, 'last_name', 'nom_de_famille')
   if (first) return [first, last]
-  const full = pick(fields, 'full_name', 'nom') ?? 'Inconnu'
-  const [head, ...rest] = full.split(/\s+/)
-  return [head, rest.join(' ') || null]
+
+  const full = pick(fields, 'full_name', 'nom')
+  if (full) {
+    const [head, ...rest] = full.split(/\s+/)
+    return [head, rest.join(' ') || null]
+  }
+
+  const derived = nameFromEmail(pick(fields, 'email'))
+  if (derived) return [derived[0], derived.slice(1).join(' ') || null]
+  return ['Inconnu', null]
 }
 
 function toRow(lead, formName) {

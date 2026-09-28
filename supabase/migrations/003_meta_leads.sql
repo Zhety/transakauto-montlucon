@@ -22,5 +22,8 @@ alter table public.leads
 alter table public.leads
   add column if not exists meta_lead_id text;
 
+-- Index simple et non partiel : PostgreSQL traite les NULL comme distincts,
+-- les demandes du site (sans identifiant Meta) cohabitent donc sans contrainte.
+-- Un index partiel serait refusé comme cible d'un ON CONFLICT.
 create unique index if not exists leads_meta_lead_id_key
-  on public.leads (meta_lead_id) where meta_lead_id is not null;
+  on public.leads (meta_lead_id);
