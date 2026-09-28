@@ -1,7 +1,10 @@
 import { LoginForm } from '@/components/board/login-form'
+import { currentBoardBase } from '@/lib/board-path-server'
 import { isSupabaseConfigured } from '@/lib/supabase'
 
-export default function BoardLoginPage() {
+export default async function BoardLoginPage() {
+  const base = await currentBoardBase()
+
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5 py-16">
       <div className="mb-8 text-center">
@@ -14,7 +17,7 @@ export default function BoardLoginPage() {
       </div>
 
       {isSupabaseConfigured ? (
-        <LoginForm />
+        <LoginForm base={base} />
       ) : (
         <div className="rounded-2xl border border-line bg-card p-6 text-sm leading-relaxed text-graphite">
           Le tableau n&apos;est pas encore relié à sa base de données. Renseignez

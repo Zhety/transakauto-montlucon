@@ -11,10 +11,20 @@ export type LeadStatus = (typeof LEAD_STATUSES)[number]['key']
 
 export const LEAD_STATUS_KEYS = LEAD_STATUSES.map((status) => status.key)
 
+export const MEMBER_ROLES = [
+  { key: 'admin', label: 'Administrateur', help: 'Gère les leads et les utilisateurs' },
+  { key: 'commercial', label: 'Commercial', help: 'Gère les leads' },
+] as const
+
+export type MemberRole = (typeof MEMBER_ROLES)[number]['key']
+
 export interface Member {
   id: string
   first_name: string
   last_name: string | null
+  role: MemberRole
+  /** Renseigné uniquement sur la page Utilisateurs, via l'API d'administration. */
+  email?: string
 }
 
 export function memberName(member: Member): string {

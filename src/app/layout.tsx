@@ -1,9 +1,5 @@
 import type { Metadata } from 'next'
 import { Poppins } from 'next/font/google'
-import { AnchorBehavior } from '@/components/anchor-behavior'
-import { Analytics } from '@/components/analytics'
-import { PublicOnly } from '@/components/public-only'
-import { SiteFooter, SiteHeader } from '@/components/site-chrome'
 import { SITE } from '@/lib/site'
 import './globals.css'
 
@@ -69,17 +65,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr" className={poppins.variable}>
-      <body className="min-h-screen bg-paper text-ink">
-        <PublicOnly>
-          <SiteHeader />
-        </PublicOnly>
-        <main>{children}</main>
-        <PublicOnly>
-          <SiteFooter />
-          <AnchorBehavior />
-          <Analytics />
-        </PublicOnly>
-      </body>
+      <body className="min-h-screen bg-paper text-ink">{children}</body>
     </html>
   )
 }

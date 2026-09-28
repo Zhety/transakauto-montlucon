@@ -17,9 +17,21 @@ export async function middleware(request: NextRequest) {
 
   let response = NextResponse.next({ request })
 
-  if (isLeadsHost && !request.nextUrl.pathname.startsWith('/board')) {
+  const { pathname } = request.nextUrl
+
+  if (isLeadsHost && pathname.startsWith('/board')) {
+    // Le préfixe /board n'apparaît jamais sur le sous-domaine : un ancien lien
+    // ou une redirection interne est ramené au chemin propre (/, /login, /users).
+    const clean = request.nextUrl.clone()
+    clean.pathname = pathname.replace(/^\/board/, '') || '/'
+    return NextResponse.redirect(clean, 308)
+  }
+
+  // Les routes API gardent leur chemin : le tableau appelle /api/board/* depuis
+  // le sous-domaine, une réécriture les enverrait vers /board/api/... (404).
+  if (isLeadsHost && !pathname.startsWith('/api')) {
     const rewritten = request.nextUrl.clone()
-    rewritten.pathname = `/board${request.nextUrl.pathname === '/' ? '' : request.nextUrl.pathname}`
+    rewritten.pathname = `/board${pathname === '/' ? '' : pathname}`
     response = NextResponse.rewrite(rewritten)
   }
 

@@ -1,7 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
+import { boardHref } from '@/lib/board-path'
 import { INTENT_LABELS, leadRows } from '@/lib/lead'
 import {
   LEAD_STATUSES,
@@ -24,15 +26,20 @@ function initials(member: Member): string {
 export function LeadsBoard({
   initialLeads,
   members,
-  currentEmail,
+  current,
+  base,
 }: {
   initialLeads: LeadRow[]
   members: Member[]
-  currentEmail: string
+  current: { email: string; member: Member }
+  /** '' sur leads.transakautomontlucon.com, '/board' sur le domaine principal. */
+  base: string
 }) {
   const router = useRouter()
   const [leads, setLeads] = useState(initialLeads)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [overColumn, setOverColumn] = useState<LeadStatus | null>(null)
 
   const supabase = useMemo(() => createBrowserSupabase(), [])
 
@@ -41,11 +48,15 @@ export function LeadsBoard({
     const channel = supabase
       .channel('leads-board')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
-        setLeads((current) => [payload.new as LeadRow, ...current])
+        setLeads((list) => [payload.new as LeadRow, ...list])
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
         const updated = payload.new as LeadRow
-        setLeads((current) => current.map((lead) => (lead.id === updated.id ? updated : lead)))
+        setLeads((list) => list.map((lead) => (lead.id === updated.id ? updated : lead)))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, (payload) => {
+        const removed = payload.old as Partial<LeadRow>
+        setLeads((list) => list.filter((lead) => lead.id !== removed.id))
       })
       .subscribe()
 
@@ -56,22 +67,32 @@ export function LeadsBoard({
 
   /** Mise à jour optimiste : la colonne bouge tout de suite, la base suit. */
   async function setStatus(id: string, status: LeadStatus) {
-    setLeads((current) => current.map((lead) => (lead.id === id ? { ...lead, status } : lead)))
+    setLeads((list) => list.map((lead) => (lead.id === id ? { ...lead, status } : lead)))
     await supabase.from('leads').update({ status }).eq('id', id)
   }
 
   async function setAssignee(id: string, assigned_to: string | null) {
-    setLeads((current) => current.map((lead) => (lead.id === id ? { ...lead, assigned_to } : lead)))
+    setLeads((list) => list.map((lead) => (lead.id === id ? { ...lead, assigned_to } : lead)))
     await supabase.from('leads').update({ assigned_to }).eq('id', id)
   }
 
   async function signOut() {
     await supabase.auth.signOut()
-    router.replace('/board/login')
+    router.replace(boardHref(base, 'login'))
     router.refresh()
   }
 
+  function dropOn(status: LeadStatus, event: React.DragEvent) {
+    event.preventDefault()
+    const id = event.dataTransfer.getData('text/plain') || dragId
+    const lead = id ? leads.find((item) => item.id === id) : null
+    if (lead && lead.status !== status) void setStatus(lead.id, status)
+    setDragId(null)
+    setOverColumn(null)
+  }
+
   const open = leads.find((lead) => lead.id === openId) ?? null
+  const isAdmin = current.member.role === 'admin'
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -81,7 +102,15 @@ export function LeadsBoard({
           <span className="text-sm text-muted">{leads.length} demandes</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-muted sm:block">{currentEmail}</span>
+          <span className="hidden text-sm text-muted sm:block">{memberName(current.member)}</span>
+          {isAdmin && (
+            <Link
+              href={boardHref(base, 'users')}
+              className="rounded-full border border-line px-4 py-1.5 text-sm text-graphite transition-colors hover:border-ink hover:text-ink"
+            >
+              Utilisateurs
+            </Link>
+          )}
           <button
             type="button"
             onClick={signOut}
@@ -95,31 +124,64 @@ export function LeadsBoard({
       <div className="flex flex-1 gap-4 overflow-x-auto p-5">
         {LEAD_STATUSES.map((column) => {
           const columnLeads = leads.filter((lead) => lead.status === column.key)
+          const isOver = overColumn === column.key && dragId !== null
 
           return (
-            <section key={column.key} className="flex w-80 shrink-0 flex-col">
+            <section
+              key={column.key}
+              className="flex w-80 shrink-0 flex-col"
+              onDragOver={(event) => {
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'move'
+                if (overColumn !== column.key) setOverColumn(column.key)
+              }}
+              onDrop={(event) => dropOn(column.key, event)}
+            >
               <div className="flex items-center justify-between gap-2 px-1 pb-3">
                 <h2 className="text-sm font-semibold">{column.label}</h2>
                 <span className="rounded-full bg-line px-2 py-0.5 text-xs text-graphite">{columnLeads.length}</span>
               </div>
 
-              <div className="flex flex-col gap-2">
+              {/* Toute la hauteur de la colonne accepte le dépôt, même vide. */}
+              <div
+                className={`flex min-h-40 flex-1 flex-col gap-2 rounded-xl p-1 transition-colors ${
+                  isOver ? 'bg-accent-soft/60 ring-2 ring-accent/40' : ''
+                }`}
+              >
                 {columnLeads.map((lead) => {
                   const assignee = members.find((member) => member.id === lead.assigned_to)
+                  const isDragging = dragId === lead.id
 
                   return (
                     <article
                       key={lead.id}
-                      className="rounded-xl border border-line bg-card p-3.5 shadow-sm transition-colors hover:border-muted"
+                      role="button"
+                      tabIndex={0}
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData('text/plain', lead.id)
+                        event.dataTransfer.effectAllowed = 'move'
+                        setDragId(lead.id)
+                      }}
+                      onDragEnd={() => {
+                        setDragId(null)
+                        setOverColumn(null)
+                      }}
+                      onClick={() => setOpenId(lead.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          setOpenId(lead.id)
+                        }
+                      }}
+                      className={`cursor-grab rounded-xl border border-line bg-card p-3.5 shadow-sm transition-all hover:border-muted active:cursor-grabbing ${
+                        isDragging ? 'opacity-40' : ''
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setOpenId(lead.id)}
-                          className="truncate text-left text-sm font-semibold hover:underline"
-                        >
+                        <p className="truncate text-sm font-semibold">
                           {lead.make} {lead.model}
-                        </button>
+                        </p>
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
                             lead.intent === 'reprise' ? 'bg-ink text-white' : 'bg-accent-soft text-accent-ink'
@@ -140,12 +202,14 @@ export function LeadsBoard({
                       <div className="mt-3 flex items-center gap-2">
                         <a
                           href={`tel:${lead.phone.replace(/\s/g, '')}`}
+                          onClick={(event) => event.stopPropagation()}
                           className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white"
                         >
                           Appeler
                         </a>
                         <a
                           href={`mailto:${lead.email}`}
+                          onClick={(event) => event.stopPropagation()}
                           className="rounded-full border border-line px-3 py-1 text-xs text-graphite hover:border-ink hover:text-ink"
                         >
                           Email
@@ -163,7 +227,7 @@ export function LeadsBoard({
                   )
                 })}
 
-                {columnLeads.length === 0 && (
+                {columnLeads.length === 0 && !isOver && (
                   <p className="px-1 py-6 text-center text-xs text-muted">Aucun lead</p>
                 )}
               </div>

@@ -1,32 +1,33 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { LeadsBoard } from '@/components/board/leads-board'
+import { getCurrentMember } from '@/lib/board-auth'
+import { boardHref } from '@/lib/board-path'
+import { currentBoardBase } from '@/lib/board-path-server'
 import type { LeadRow, Member } from '@/lib/leads-board'
-import { createServerSupabase, isSupabaseConfigured } from '@/lib/supabase'
+import { createServerSupabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 export default async function BoardPage() {
-  if (!isSupabaseConfigured) redirect('/board/login')
+  const base = await currentBoardBase()
+  const current = await getCurrentMember()
+  if (!current) redirect(boardHref(base, 'login'))
 
+  // Lectures soumises à RLS : l'utilisateur ne voit que ce que les règles lui
+  // accordent, la clé de service ne sert qu'à l'identifier.
   const supabase = createServerSupabase(await cookies())
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) redirect('/board/login')
-
   const [{ data: leads }, { data: members }] = await Promise.all([
     supabase.from('leads').select('*').order('created_at', { ascending: false }),
-    supabase.from('members').select('id, first_name, last_name').order('first_name'),
+    supabase.from('members').select('id, first_name, last_name, role').order('first_name'),
   ])
 
   return (
     <LeadsBoard
       initialLeads={(leads ?? []) as LeadRow[]}
       members={(members ?? []) as Member[]}
-      currentEmail={user.email ?? ''}
+      current={current}
+      base={base}
     />
   )
 }

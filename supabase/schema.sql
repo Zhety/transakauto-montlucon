@@ -6,10 +6,14 @@ create type lead_status as enum ('a_traiter', 'ne_repond_pas', 'non_rdv', 'oui_r
 
 -- Les commerciaux qui peuvent se voir attribuer un lead. Un membre est créé
 -- pour chaque compte autorisé à ouvrir le tableau.
+-- Rôles : un admin gère les utilisateurs, un commercial travaille les leads.
+create type member_role as enum ('admin', 'commercial');
+
 create table if not exists public.members (
   id uuid primary key references auth.users (id) on delete cascade,
   first_name text not null,
   last_name text,
+  role member_role not null default 'commercial',
   created_at timestamptz not null default now()
 );
 
@@ -76,6 +80,16 @@ as $$ select exists (select 1 from public.members where id = auth.uid()) $$;
 
 revoke execute on function public.is_member() from anon;
 
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$ select exists (select 1 from public.members where id = auth.uid() and role = 'admin') $$;
+
+revoke execute on function public.is_admin() from anon;
+
 -- Les demandes arrivent par la route serveur, qui utilise la clé de service et
 -- contourne donc RLS. Aucune écriture n'est ouverte au public.
 create policy "membres lisent les leads"
@@ -97,6 +111,9 @@ create policy "membres lisent les membres"
 -- Diffusion temps réel : un nouveau lead apparaît sans rafraîchir la page.
 alter publication supabase_realtime add table public.leads;
 
--- Après avoir créé les comptes dans Authentication → Users, les déclarer ici :
--- insert into public.members (id, first_name, last_name)
--- values ('<uuid du compte>', 'François', 'Gayon');
+-- Les utilisateurs se créent depuis le tableau (page Utilisateurs, réservée aux
+-- admins) : la route serveur crée le compte et la ligne `members` avec la clé
+-- de service. Pour amorcer le premier admin, après avoir créé son compte dans
+-- Authentication → Users :
+-- insert into public.members (id, first_name, last_name, role)
+-- values ('<uuid du compte>', 'François', 'Gayon', 'admin');

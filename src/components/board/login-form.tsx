@@ -2,12 +2,13 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { boardHref } from '@/lib/board-path'
 import { createBrowserSupabase } from '@/lib/supabase'
 
 const field =
   'w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[15px] text-ink outline-none transition-colors placeholder:text-muted/70 focus:border-ink'
 
-export function LoginForm() {
+export function LoginForm({ base }: { base: string }) {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -31,7 +32,7 @@ export function LoginForm() {
       return
     }
 
-    router.replace('/board')
+    router.replace(boardHref(base, ''))
     router.refresh()
   }
 
