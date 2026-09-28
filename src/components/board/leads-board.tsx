@@ -11,9 +11,32 @@ import {
   type LeadStatus,
   type Member,
   memberName,
+  leadOrigin,
+  ORIGIN_LABELS,
   rowToLead,
 } from '@/lib/leads-board'
 import { createBrowserSupabase } from '@/lib/supabase'
+
+/** Un véhicule non renseigné (lead Meta) ne doit pas afficher une ligne vide. */
+function vehicleLabel(lead: LeadRow): string {
+  return [lead.make, lead.model].filter(Boolean).join(' ') || 'Véhicule non précisé'
+}
+
+/** Année · kilométrage · code postal, en sautant ce qui manque. */
+function summaryLine(lead: LeadRow): string {
+  const parts = [
+    lead.year == null ? null : String(lead.year),
+    lead.mileage_km == null ? null : `${lead.mileage_km.toLocaleString('fr-FR')} km`,
+    lead.postal_code,
+  ].filter(Boolean)
+  return parts.join(' · ') || '—'
+}
+
+const ORIGIN_STYLES: Record<string, string> = {
+  meta: 'bg-[#0866ff]/10 text-[#0866ff]',
+  google: 'bg-[#34a853]/10 text-[#1e7e34]',
+  site: 'bg-ink/5 text-muted',
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -179,9 +202,7 @@ export function LeadsBoard({
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="truncate text-sm font-semibold">
-                          {lead.make} {lead.model}
-                        </p>
+                        <p className="truncate text-sm font-semibold">{vehicleLabel(lead)}</p>
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
                             lead.intent === 'reprise' ? 'bg-ink text-white' : 'bg-accent-soft text-accent-ink'
@@ -191,22 +212,31 @@ export function LeadsBoard({
                         </span>
                       </div>
 
-                      <p className="mt-1 text-xs text-muted">
-                        {lead.year} · {lead.mileage_km.toLocaleString('fr-FR')} km · {lead.postal_code}
-                      </p>
+                      <p className="mt-1 text-xs text-muted">{summaryLine(lead)}</p>
                       <p className="mt-2 text-sm font-medium">
                         {lead.first_name} {lead.last_name}
                       </p>
-                      <p className="text-xs text-muted">{formatDate(lead.created_at)}</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                            ORIGIN_STYLES[leadOrigin(lead)]
+                          }`}
+                        >
+                          {ORIGIN_LABELS[leadOrigin(lead)]}
+                        </span>
+                        <span className="text-xs text-muted">{formatDate(lead.created_at)}</span>
+                      </div>
 
                       <div className="mt-3 flex items-center gap-2">
-                        <a
-                          href={`tel:${lead.phone.replace(/\s/g, '')}`}
-                          onClick={(event) => event.stopPropagation()}
-                          className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white"
-                        >
-                          Appeler
-                        </a>
+                        {lead.phone && (
+                          <a
+                            href={`tel:${lead.phone.replace(/\s/g, '')}`}
+                            onClick={(event) => event.stopPropagation()}
+                            className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white"
+                          >
+                            Appeler
+                          </a>
+                        )}
                         <a
                           href={`mailto:${lead.email}`}
                           onClick={(event) => event.stopPropagation()}
@@ -250,7 +280,7 @@ export function LeadsBoard({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold">
-                  {open.make} {open.model} {open.version ?? ''}
+                  {[open.make, open.model, open.version].filter(Boolean).join(' ') || 'Véhicule non précisé'}
                 </h2>
                 <p className="text-sm text-muted">
                   {INTENT_LABELS[open.intent]} · {formatDate(open.created_at)}
@@ -308,12 +338,14 @@ export function LeadsBoard({
             </dl>
 
             <div className="mt-5 flex gap-2">
-              <a
-                href={`tel:${open.phone.replace(/\s/g, '')}`}
-                className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-white"
-              >
-                Appeler
-              </a>
+              {open.phone && (
+                <a
+                  href={`tel:${open.phone.replace(/\s/g, '')}`}
+                  className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-white"
+                >
+                  Appeler
+                </a>
+              )}
               <a
                 href={`mailto:${open.email}`}
                 className="rounded-full border border-line px-5 py-2 text-sm text-graphite hover:border-ink hover:text-ink"

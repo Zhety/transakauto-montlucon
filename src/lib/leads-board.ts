@@ -1,4 +1,4 @@
-import type { LeadInput, LeadIntent } from './lead'
+import type { LeadInput, LeadIntent, LeadLike } from './lead'
 
 export const LEAD_STATUSES = [
   { key: 'a_traiter', label: 'À traiter' },
@@ -38,16 +38,16 @@ export interface LeadRow {
   status: LeadStatus
   assigned_to: string | null
   intent: LeadIntent
-  make: string
-  model: string
+  make: string | null
+  model: string | null
   version: string | null
-  year: number
+  year: number | null
   first_registration: string | null
-  mileage_km: number
-  fuel: string
-  gearbox: string
+  mileage_km: number | null
+  fuel: string | null
+  gearbox: string | null
   plate: string | null
-  condition: string
+  condition: string | null
   technical_inspection: string | null
   service_history: boolean | null
   first_hand: boolean | null
@@ -56,14 +56,15 @@ export interface LeadRow {
   expected_price_eur: number | null
   timeframe: string | null
   first_name: string
-  last_name: string
+  last_name: string | null
   email: string
-  phone: string
-  postal_code: string
+  phone: string | null
+  postal_code: string | null
   city: string | null
   message: string | null
   source: string | null
   utm: Record<string, string> | null
+  meta_lead_id: string | null
 }
 
 /** Passe d'une demande validée à la ligne à insérer. */
@@ -103,7 +104,7 @@ export function leadToRow(lead: LeadInput) {
  * Chemin inverse : le tableau réutilise `leadRows()`, le même récapitulatif que
  * les emails, pour qu'une demande s'affiche partout de façon identique.
  */
-export function rowToLead(row: LeadRow): LeadInput {
+export function rowToLead(row: LeadRow): LeadLike {
   return {
     intent: row.intent,
     make: row.make,
@@ -112,10 +113,10 @@ export function rowToLead(row: LeadRow): LeadInput {
     year: row.year,
     firstRegistration: row.first_registration ?? undefined,
     mileageKm: row.mileage_km,
-    fuel: row.fuel as LeadInput['fuel'],
-    gearbox: row.gearbox as LeadInput['gearbox'],
+    fuel: row.fuel,
+    gearbox: row.gearbox,
     plate: row.plate ?? undefined,
-    condition: row.condition as LeadInput['condition'],
+    condition: row.condition,
     technicalInspection: (row.technical_inspection ?? undefined) as LeadInput['technicalInspection'],
     serviceHistory: row.service_history ?? undefined,
     firstHand: row.first_hand ?? undefined,
@@ -134,4 +135,28 @@ export function rowToLead(row: LeadRow): LeadInput {
     utm: row.utm ?? undefined,
     consent: true,
   }
+}
+
+/**
+ * D'où vient la demande. Les leads Meta arrivent par la passerelle et portent
+ * `meta_lead_id` ; ceux du site portent les paramètres de campagne captés dans
+ * l'URL, d'où la lecture de `utm`.
+ */
+export type LeadOrigin = 'meta' | 'google' | 'site'
+
+export const ORIGIN_LABELS: Record<LeadOrigin, string> = {
+  meta: 'Meta',
+  google: 'Google Ads',
+  site: 'Site',
+}
+
+export function leadOrigin(row: Pick<LeadRow, 'meta_lead_id' | 'source' | 'utm'>): LeadOrigin {
+  if (row.meta_lead_id) return 'meta'
+
+  const utm = row.utm ?? {}
+  const source = `${utm.utm_source ?? ''} ${row.source ?? ''}`.toLowerCase()
+
+  if (utm.fbclid || /facebook|instagram|meta|fb|ig/.test(source)) return 'meta'
+  if (utm.gclid || /google|adwords/.test(source)) return 'google'
+  return 'site'
 }

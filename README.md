@@ -273,6 +273,46 @@ have permission to create deployments for this project ». Deux contournements :
 - ou masquer le dossier Git le temps du déploiement :
   `mv .git .git-off && npx vercel --yes --prod; mv .git-off .git`
 
+## Leads Meta (formulaires instantanés)
+
+Les formulaires instantanés Facebook / Instagram ne passent pas par le site : le prospect ne le
+visite jamais. Meta notifie `POST /api/meta/leads`, qui va chercher le contenu du lead sur l'API
+Graph, l'enregistre et prévient l'agence par email — exactement comme une demande du site.
+
+| Variable | Rôle |
+| --- | --- |
+| `META_APP_SECRET` | signe les notifications ; sans elle tout est refusé (401) |
+| `META_VERIFY_TOKEN` | chaîne libre, à saisir à l'identique dans Meta lors de l'abonnement |
+| `META_PAGE_ACCESS_TOKEN` | jeton de la Page, avec `leads_retrieval` et `pages_show_list` |
+
+### Mise en route
+
+1. developers.facebook.com → créer une application **Business**, y ajouter le produit
+   **Webhooks** et **Connexion Facebook pour les entreprises**.
+2. Webhooks → objet **Page** → URL de rappel `https://transakautomontlucon.com/api/meta/leads`,
+   jeton de vérification = `META_VERIFY_TOKEN`, puis s'abonner au champ **leadgen**.
+3. Générer un jeton d'accès de Page (permissions `leads_retrieval`, `pages_show_list`,
+   `pages_manage_metadata`) et l'échanger contre un **jeton longue durée**.
+4. Renseigner les trois variables en local et dans Vercel.
+
+### Correspondance des champs
+
+La passerelle reconnaît les questions par leur nom, en français comme en anglais : `full_name`,
+`first_name`, `email`, `phone`, `city`, `post_code`, plus `marque`, `modèle`, `année`,
+`kilométrage`, `message`. Les caractéristiques absentes restent vides — la migration
+[`003_meta_leads.sql`](supabase/migrations/003_meta_leads.sql) les a rendues facultatives.
+Le type de demande est déduit du nom du formulaire : « reprise » ou « rachat » dans le titre
+donne une demande de reprise, sinon une estimation.
+
+Un lead Meta porte `meta_lead_id`, sous contrainte d'unicité : Meta rejoue les événements non
+acquittés, et un même lead ne peut donc pas être inséré deux fois.
+
+### Origine dans le tableau
+
+Chaque fiche du kanban affiche d'où vient la demande — **Meta**, **Google Ads** ou **Site** —
+déduite de `meta_lead_id`, puis des paramètres `fbclid` / `gclid` / `utm_source` captés dans
+l'URL pour les demandes du site.
+
 ## Mise en ligne — reste à faire
 
 Le site est complet et fonctionnel en local. Avant la mise en production :

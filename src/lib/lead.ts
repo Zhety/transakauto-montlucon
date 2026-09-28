@@ -100,9 +100,31 @@ const labelOf = <T extends { value: string; label: string }>(list: readonly T[],
 
 const yesNo = (value?: boolean) => (value === undefined ? '—' : value ? 'Oui' : 'Non')
 
+/**
+ * Vue tolérante d'une demande : les leads issus des formulaires instantanés
+ * Meta n'ont ni véhicule ni code postal. `LeadInput` en reste un cas
+ * particulier, entièrement renseigné.
+ */
+type Nullable<T> = T | null | undefined
+export type LeadLike = Omit<
+  LeadInput,
+  'make' | 'model' | 'year' | 'mileageKm' | 'fuel' | 'gearbox' | 'condition' | 'phone' | 'postalCode' | 'lastName'
+> & {
+  make?: Nullable<string>
+  model?: Nullable<string>
+  year?: Nullable<number>
+  mileageKm?: Nullable<number>
+  fuel?: Nullable<string>
+  gearbox?: Nullable<string>
+  condition?: Nullable<string>
+  phone?: Nullable<string>
+  postalCode?: Nullable<string>
+  lastName?: Nullable<string>
+}
+
 /** Lignes du récapitulatif, partagées par l'email interne et l'accusé de réception. */
-export function leadRows(lead: LeadInput): Array<[string, string]> {
-  const km = `${lead.mileageKm.toLocaleString('fr-FR')} km`
+export function leadRows(lead: LeadLike): Array<[string, string]> {
+  const km = lead.mileageKm == null ? '—' : `${lead.mileageKm.toLocaleString('fr-FR')} km`
   const price =
     lead.expectedPriceEur === undefined
       ? '—'
@@ -112,13 +134,13 @@ export function leadRows(lead: LeadInput): Array<[string, string]> {
 
   return [
     ['Type de demande', INTENT_LABELS[lead.intent]],
-    ['Véhicule', [lead.make, lead.model, lead.version].filter(Boolean).join(' ')],
-    ['Année', String(lead.year)],
+    ['Véhicule', [lead.make, lead.model, lead.version].filter(Boolean).join(' ') || '—'],
+    ['Année', lead.year == null ? '—' : String(lead.year)],
     ['1re mise en circulation', lead.firstRegistration || '—'],
     ['Kilométrage', km],
-    ['Énergie / boîte', `${lead.fuel} · ${lead.gearbox}`],
+    ['Énergie / boîte', [lead.fuel, lead.gearbox].filter(Boolean).join(' · ') || '—'],
     ['Immatriculation', lead.plate || '—'],
-    ['État général', labelOf(CONDITIONS, lead.condition) ?? '—'],
+    ['État général', labelOf(CONDITIONS, lead.condition as LeadInput['condition']) ?? '—'],
     ['Contrôle technique', labelOf(TECHNICAL_INSPECTIONS, lead.technicalInspection) ?? '—'],
     ['Carnet d’entretien', yesNo(lead.serviceHistory)],
     ['Première main', yesNo(lead.firstHand)],
@@ -126,10 +148,10 @@ export function leadRows(lead: LeadInput): Array<[string, string]> {
     ['Situation', labelOf(OWNERSHIPS, lead.ownership) ?? '—'],
     ['Prix espéré', price],
     ['Échéance', labelOf(TIMEFRAMES, lead.timeframe) ?? '—'],
-    ['Nom', `${lead.firstName} ${lead.lastName}`],
+    ['Nom', [lead.firstName, lead.lastName].filter(Boolean).join(' ')],
     ['Email', lead.email],
-    ['Téléphone', lead.phone],
-    ['Localisation', `${lead.postalCode} ${lead.city ?? ''}`.trim()],
+    ['Téléphone', lead.phone || '—'],
+    ['Localisation', `${lead.postalCode ?? ''} ${lead.city ?? ''}`.trim() || '—'],
     ['Message', lead.message || '—'],
     ['Page d’origine', lead.source || '—'],
     ['Campagne', lead.utm && Object.keys(lead.utm).length
