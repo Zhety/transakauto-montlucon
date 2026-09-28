@@ -76,13 +76,17 @@ function splitName(fields: MetaField[]): { firstName: string; lastName: string |
   return { firstName: head, lastName: rest.join(' ') || null }
 }
 
-/** Nombre écrit librement par le prospect : « 120 000 km », « 120000 ». */
+/**
+ * Premier nombre d'un texte libre : « 141000 », « 120 000 km, embrayage à
+ * prévoir ». On ne retient que le premier groupe, sinon les chiffres d'un
+ * commentaire se colleraient au kilométrage.
+ */
 function toNumber(value?: string): number | null {
   if (!value) return null
-  const digits = value.replace(/[^\d]/g, '')
-  if (!digits) return null
-  const n = Number(digits)
-  return Number.isFinite(n) ? n : null
+  const match = value.match(/\d[\d\s.]*/)
+  if (!match) return null
+  const n = Number(match[0].replace(/[\s.]/g, ''))
+  return Number.isFinite(n) && n > 0 ? n : null
 }
 
 /** Traduit les réponses du formulaire Meta en demande, au format du site. */
@@ -97,14 +101,17 @@ function metaLeadToLead(fields: MetaField[], formName: string) {
     make: pick(fields, 'make', 'marque'),
     model: pick(fields, 'model', 'modele', 'modèle'),
     year: year && year > 1950 && year < 2100 ? year : undefined,
-    mileageKm: toNumber(pick(fields, 'mileage', 'kilometrage', 'kilométrage', 'km')) ?? undefined,
+    mileageKm: toNumber(pick(fields, 'mileage', 'kilometrage', 'kilométrage', 'informations', 'km')) ?? undefined,
+    plate: pick(fields, 'immatriculation', 'plate', 'plaque'),
     firstName,
     lastName: lastName ?? undefined,
     email: pick(fields, 'email'),
     phone: pick(fields, 'phone', 'telephone', 'téléphone'),
     postalCode: pick(fields, 'post_code', 'zip', 'code_postal'),
     city: pick(fields, 'city', 'ville'),
-    message: pick(fields, 'message', 'commentaire', 'precision', 'précision'),
+    // Le champ libre sert deux fois : on en extrait le kilométrage, et on garde
+    // le texte entier, qui contient souvent les frais à prévoir ou les options.
+    message: pick(fields, 'message', 'commentaire', 'informations', 'precision', 'précision'),
     source: `Meta — ${formName}`,
     consent: true,
   }

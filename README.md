@@ -295,11 +295,33 @@ Graph, l'enregistre et prévient l'agence par email — exactement comme une dem
    `pages_manage_metadata`) et l'échanger contre un **jeton longue durée**.
 4. Renseigner les trois variables en local et dans Vercel.
 
+### Importer l'historique du Centre de prospects
+
+Le webhook ne reçoit que les **nouveaux** leads. Les prospects déjà présents dans le Centre de
+prospects se récupèrent une fois, avec :
+
+```bash
+node --env-file=.env.local scripts/import-meta-leads.mjs --dry   # compte sans écrire
+node --env-file=.env.local scripts/import-meta-leads.mjs         # importe
+```
+
+Le script parcourt tous les formulaires de la Page, pagine les leads et les insère avec la même
+correspondance de champs que la passerelle. Il est **rejouable** : un lead déjà importé est
+ignoré grâce à la contrainte d'unicité sur `meta_lead_id`. La date d'origine (`created_time`) est
+conservée, l'historique s'affiche donc au bon moment dans le kanban.
+
 ### Correspondance des champs
 
 La passerelle reconnaît les questions par leur nom, en français comme en anglais : `full_name`,
 `first_name`, `email`, `phone`, `city`, `post_code`, plus `marque`, `modèle`, `année`,
-`kilométrage`, `message`. Les caractéristiques absentes restent vides — la migration
+`immatriculation`, `kilométrage` et `informations complémentaires`.
+
+Le formulaire en service pose « Marque de votre véhicule », « Modèle », « Immatriculation » et
+« Informations complémentaires (kilométrage, frais à prévoir, options…) ». Ce dernier champ sert
+deux fois : le premier nombre qu'il contient devient le kilométrage, et le texte entier est
+conservé en commentaire — c'est souvent là que se trouvent les frais à prévoir.
+
+Les caractéristiques absentes restent vides — la migration
 [`003_meta_leads.sql`](supabase/migrations/003_meta_leads.sql) les a rendues facultatives.
 Le type de demande est déduit du nom du formulaire : « reprise » ou « rachat » dans le titre
 donne une demande de reprise, sinon une estimation.
