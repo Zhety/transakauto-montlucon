@@ -114,6 +114,27 @@ function toRow(lead, formName) {
  * Un jeton d'utilisateur système ne renvoie pas toujours les Pages via
  * `me/accounts` : META_PAGE_ID permet alors de viser la Page directement.
  */
+/*
+ * Identifiants déjà importés : le filtrage se fait ici plutôt que par un
+ * ON CONFLICT, pour que le script reste rejouable même si l'index d'unicité
+ * sur meta_lead_id n'a pas encore été créé en base.
+ */
+const known = new Set()
+for (let from = 0; ; from += 1000) {
+  const { data, error } = await supabase
+    .from('leads')
+    .select('meta_lead_id')
+    .not('meta_lead_id', 'is', null)
+    .range(from, from + 999)
+  if (error) {
+    console.error('Lecture des leads existants impossible :', error.message)
+    process.exit(1)
+  }
+  for (const row of data) known.add(row.meta_lead_id)
+  if (data.length < 1000) break
+}
+console.log(`${known.size} lead(s) Meta déjà en base.`)
+
 const pages = process.env.META_PAGE_ID
   ? { data: [await graph(`${process.env.META_PAGE_ID}?fields=id,name`)] }
   : await graph('me/accounts?fields=id,name')
@@ -134,14 +155,13 @@ for (const page of pages.data ?? []) {
       count += rows.length
       total += rows.length
 
-      if (rows.length && !DRY) {
-        // onConflict : un lead déjà importé est laissé tel quel, le script
-        // reste rejouable.
-        const { error, count: n } = await supabase
-          .from('leads')
-          .upsert(rows, { onConflict: 'meta_lead_id', ignoreDuplicates: true, count: 'exact' })
+      const fresh = rows.filter((row) => !known.has(row.meta_lead_id))
+      for (const row of fresh) known.add(row.meta_lead_id)
+
+      if (fresh.length && !DRY) {
+        const { data, error } = await supabase.from('leads').insert(fresh).select('id')
         if (error) console.error(`  ! ${form.name} : ${error.message}`)
-        else inserted += n ?? 0
+        else inserted += data?.length ?? 0
       }
 
       next = batch.paging?.next ?? null

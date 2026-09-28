@@ -118,8 +118,8 @@ export function LeadsBoard({
   const isAdmin = current.member.role === 'admin'
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between gap-4 border-b border-line bg-card px-5 py-4">
+    <div className="flex h-screen flex-col overflow-hidden">
+      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line bg-card px-5 py-4">
         <div className="flex items-baseline gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Transakauto — Leads</h1>
           <span className="text-sm text-muted">{leads.length} demandes</span>
@@ -144,7 +144,9 @@ export function LeadsBoard({
         </div>
       </header>
 
-      <div className="flex flex-1 gap-4 overflow-x-auto p-5">
+      {/* `min-h-0` : sans lui, une colonne pleine pousserait la hauteur
+          au lieu de faire défiler son propre contenu. */}
+      <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-5">
         {LEAD_STATUSES.map((column) => {
           const columnLeads = leads.filter((lead) => lead.status === column.key)
           const isOver = overColumn === column.key && dragId !== null
@@ -152,7 +154,7 @@ export function LeadsBoard({
           return (
             <section
               key={column.key}
-              className="flex w-80 shrink-0 flex-col"
+              className="flex min-h-0 w-80 shrink-0 flex-col"
               onDragOver={(event) => {
                 event.preventDefault()
                 event.dataTransfer.dropEffect = 'move'
@@ -160,14 +162,14 @@ export function LeadsBoard({
               }}
               onDrop={(event) => dropOn(column.key, event)}
             >
-              <div className="flex items-center justify-between gap-2 px-1 pb-3">
+              <div className="flex shrink-0 items-center justify-between gap-2 px-1 pb-3">
                 <h2 className="text-sm font-semibold">{column.label}</h2>
                 <span className="rounded-full bg-line px-2 py-0.5 text-xs text-graphite">{columnLeads.length}</span>
               </div>
 
               {/* Toute la hauteur de la colonne accepte le dépôt, même vide. */}
               <div
-                className={`flex min-h-40 flex-1 flex-col gap-2 rounded-xl p-1 transition-colors ${
+                className={`flex min-h-40 flex-1 flex-col gap-2 overflow-y-auto rounded-xl p-1 transition-colors ${
                   isOver ? 'bg-accent-soft/60 ring-2 ring-accent/40' : ''
                 }`}
               >

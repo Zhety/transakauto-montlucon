@@ -2,6 +2,7 @@ import type { LeadInput, LeadIntent, LeadLike } from './lead'
 
 export const LEAD_STATUSES = [
   { key: 'a_traiter', label: 'À traiter' },
+  { key: 'a_rappeler', label: 'À rappeler' },
   { key: 'ne_repond_pas', label: 'Ne répond pas' },
   { key: 'non_rdv', label: 'Non RDV' },
   { key: 'oui_rdv', label: 'Oui RDV' },
