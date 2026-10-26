@@ -252,8 +252,9 @@ vers `/board`, le site public et le tableau vivent donc dans le même déploieme
 - **Temps réel** : une demande envoyée depuis le site apparaît sans rafraîchir.
 - **Fiche détaillée** : elle réutilise `leadRows()`, le récapitulatif des emails.
 - **Notes d'appel** : chaque fiche a un journal (table `lead_notes`) — une note par appel,
-  horodatée et signée par son auteur, sans modification ni suppression possible depuis le
-  tableau : c'est une trace. La dernière note s'affiche en résumé sur la carte.
+  horodatée et signée par son auteur. Pas de modification ; la suppression (bouton « Supprimer »
+  sur la note) est réservée à son auteur et aux administrateurs (migration `007`). La dernière
+  note s'affiche en résumé sur la carte.
 - **Date de rappel** : `leads.callback_at`, saisie sur la fiche. Elle s'affiche sur la carte
   (rouge si dépassée, magenta si c'est aujourd'hui) et trie la colonne « À rappeler », le
   prochain rappel en premier.
@@ -274,7 +275,7 @@ vers `/board`, le site public et le tableau vivent donc dans le même déploieme
 
 Base déjà en service : ne pas rejouer `schema.sql`, exécuter les migrations de
 [`supabase/migrations/`](supabase/migrations/) dans l'ordre (`004` seule dans sa requête, puis
-`005` et `006`). Tant qu'une migration manque, le tableau le signale dans un bandeau rouge au premier
+`005`, `006` et `007`). Tant qu'une migration manque, le tableau le signale dans un bandeau rouge au premier
 enregistrement refusé.
 
 La route `/api/lead` écrit en base avec la clé de service, en parallèle de l'envoi des emails :

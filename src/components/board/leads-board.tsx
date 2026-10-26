@@ -127,14 +127,27 @@ const fieldCls = 'w-full rounded-lg border border-line bg-paper px-3 py-2 text-s
 function NotesPanel({
   notes,
   members,
+  canDelete,
   onAdd,
+  onDelete,
 }: {
   notes: LeadNote[]
   members: Member[]
+  canDelete: (note: LeadNote) => boolean
   onAdd: (body: string) => Promise<boolean>
+  onDelete: (noteId: string) => Promise<void>
 }) {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  async function remove(note: LeadNote) {
+    if (deletingId) return
+    if (!window.confirm('Supprimer cette note ? Cette action est définitive.')) return
+    setDeletingId(note.id)
+    await onDelete(note.id)
+    setDeletingId(null)
+  }
 
   async function submit(event: React.SyntheticEvent) {
     event.preventDefault()
@@ -178,8 +191,20 @@ function NotesPanel({
             return (
               <li key={note.id} className="rounded-lg border border-line bg-paper/60 px-3 py-2 text-sm">
                 <p className="whitespace-pre-wrap">{note.body}</p>
-                <p className="mt-1 text-xs text-muted">
-                  {author ? memberName(author) : 'Compte supprimé'} · {formatDate(note.created_at)}
+                <p className="mt-1 flex items-center gap-3 text-xs text-muted">
+                  <span>
+                    {author ? memberName(author) : 'Compte supprimé'} · {formatDate(note.created_at)}
+                  </span>
+                  {canDelete(note) && (
+                    <button
+                      type="button"
+                      onClick={() => void remove(note)}
+                      disabled={deletingId !== null}
+                      className="ml-auto text-red-600 underline-offset-2 hover:underline disabled:opacity-40"
+                    >
+                      {deletingId === note.id ? 'Suppression…' : 'Supprimer'}
+                    </button>
+                  )}
                 </p>
               </li>
             )
@@ -241,6 +266,10 @@ export function LeadsBoard({
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lead_notes' }, (payload) => {
         const note = payload.new as LeadNote
         setNotes((list) => (list.some((item) => item.id === note.id) ? list : [note, ...list]))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'lead_notes' }, (payload) => {
+        const removed = payload.old as Partial<LeadNote>
+        setNotes((list) => list.filter((note) => note.id !== removed.id))
       })
       .subscribe()
 
@@ -327,6 +356,34 @@ export function LeadsBoard({
       console.error('[leads-board] note refusée', { leadId, cause })
       setError(describeDbError(cause))
       return false
+    }
+  }
+
+  /**
+   * Supprime une note (auteur ou admin, migration 007). Retrait optimiste, remise en
+   * place si la base refuse — zéro ligne supprimée = droit manquant.
+   */
+  async function deleteNote(noteId: string): Promise<void> {
+    const previous = notes.find((note) => note.id === noteId)
+    if (!previous) return
+    setError(null)
+    setNotes((list) => list.filter((note) => note.id !== noteId))
+    try {
+      const { data, error: dbError } = await supabase.from('lead_notes').delete().eq('id', noteId).select('id')
+      if (dbError) throw dbError
+      if (!data || data.length === 0) {
+        throw new Error(
+          "la base n'a supprimé aucune note. Seul l'auteur ou un administrateur peut le faire ; si c'est votre cas, exécutez la migration supabase/migrations/007_suppression_notes.sql dans Supabase → SQL Editor.",
+        )
+      }
+    } catch (cause) {
+      console.error('[leads-board] suppression de note refusée', { noteId, cause })
+      setNotes((list) =>
+        list.some((note) => note.id === noteId)
+          ? list
+          : [...list, previous].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+      )
+      setError(describeDbError(cause))
     }
   }
 
@@ -635,7 +692,14 @@ export function LeadsBoard({
             </div>
 
             {/* `key` : le brouillon de note repart à vide quand on change de fiche. */}
-            <NotesPanel key={open.id} notes={openNotes} members={members} onAdd={(body) => addNote(open.id, body)} />
+            <NotesPanel
+              key={open.id}
+              notes={openNotes}
+              members={members}
+              canDelete={(note) => isAdmin || note.author_id === current.member.id}
+              onAdd={(body) => addNote(open.id, body)}
+              onDelete={deleteNote}
+            />
 
             <dl className="mt-5 divide-y divide-line text-sm">
               {leadRows(rowToLead(open)).map(([label, value]) => (

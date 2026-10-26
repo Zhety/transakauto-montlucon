@@ -137,6 +137,11 @@ create policy "membres ajoutent des notes"
   to authenticated
   with check (public.is_member() and author_id = auth.uid());
 
+create policy "auteur ou admin supprime une note"
+  on public.lead_notes for delete
+  to authenticated
+  using (public.is_member() and (author_id = auth.uid() or public.is_admin()));
+
 -- Diffusion temps réel : un nouveau lead ou une note apparaît sans rafraîchir.
 alter publication supabase_realtime add table public.leads;
 alter publication supabase_realtime add table public.lead_notes;
