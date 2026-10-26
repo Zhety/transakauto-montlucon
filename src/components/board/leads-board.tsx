@@ -7,6 +7,7 @@ import { boardHref } from '@/lib/board-path'
 import { INTENT_LABELS, leadRows } from '@/lib/lead'
 import {
   LEAD_STATUSES,
+  type LeadNote,
   type LeadRow,
   type LeadStatus,
   type Member,
@@ -38,21 +39,166 @@ const ORIGIN_STYLES: Record<string, string> = {
   site: 'bg-ink/5 text-muted',
 }
 
+/** Champs que le tableau modifie depuis le navigateur. */
+type LeadPatch = Partial<Pick<LeadRow, 'status' | 'assigned_to' | 'callback_at'>>
+
+/**
+ * Message lisible quand la base refuse une écriture. Deux cas connus : un
+ * statut ajouté au code mais pas à l'enum `lead_status`, et une colonne ou une
+ * table ajoutée au code (migration `supabase/migrations/*.sql`) mais pas encore
+ * créée dans le projet Supabase.
+ */
+function describeDbError(cause: unknown, patch?: LeadPatch): string {
+  const message =
+    cause instanceof Error
+      ? cause.message
+      : typeof cause === 'object' && cause !== null && 'message' in cause
+        ? String((cause as { message: unknown }).message)
+        : String(cause)
+
+  if (patch?.status && /invalid input value for enum lead_status/i.test(message)) {
+    const label = LEAD_STATUSES.find((status) => status.key === patch.status)?.label ?? patch.status
+    return `Le statut « ${label} » n'existe pas encore dans la base de données. Exécutez la migration supabase/migrations/004_statut_a_rappeler.sql dans Supabase → SQL Editor, puis réessayez.`
+  }
+
+  if (/schema cache/i.test(message)) {
+    return `La base de données n'est pas à jour (${message}). Exécutez la migration supabase/migrations/005_notes_et_rappel.sql dans Supabase → SQL Editor, puis rechargez la page.`
+  }
+
+  return `La modification n'a pas été enregistrée : ${message}`
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+/** Date de rappel sur la fiche : « mar. 28 oct., 14:30 ». */
+function formatCallback(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+/** Valeur d'un <input type="datetime-local"> : heure locale, sans fuseau. */
+function toLocalInput(iso: string | null): string {
+  if (!iso) return ''
+  const date = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+type CallbackTone = 'overdue' | 'today' | 'later'
+
+/**
+ * Rappel dépassé, prévu aujourd'hui, ou plus tard. `now` vaut null tant que le
+ * navigateur n'a pas pris la main : le serveur rend sans état de retard.
+ */
+function callbackTone(iso: string, now: number | null): CallbackTone {
+  if (now === null) return 'later'
+  const date = new Date(iso)
+  if (date.getTime() < now) return 'overdue'
+  return date.toDateString() === new Date(now).toDateString() ? 'today' : 'later'
+}
+
+const CALLBACK_STYLES: Record<CallbackTone, string> = {
+  overdue: 'bg-red-50 text-red-700 ring-1 ring-red-200',
+  today: 'bg-accent-soft text-accent-ink ring-1 ring-accent/30',
+  later: 'bg-paper text-graphite ring-1 ring-line',
+}
+
+/** Colonne « À rappeler » : le prochain rappel en premier, les fiches sans date à la fin. */
+function byCallback(a: LeadRow, b: LeadRow): number {
+  const ta = a.callback_at ? Date.parse(a.callback_at) : Number.POSITIVE_INFINITY
+  const tb = b.callback_at ? Date.parse(b.callback_at) : Number.POSITIVE_INFINITY
+  return ta - tb
 }
 
 function initials(member: Member): string {
   return `${member.first_name.charAt(0)}${member.last_name?.charAt(0) ?? ''}`.toUpperCase()
 }
 
+const fieldCls = 'w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm outline-none focus:border-ink'
+
+/** Journal des appels d'une fiche : saisie, puis liste de la plus récente à la plus ancienne. */
+function NotesPanel({
+  notes,
+  members,
+  onAdd,
+}: {
+  notes: LeadNote[]
+  members: Member[]
+  onAdd: (body: string) => Promise<boolean>
+}) {
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function submit(event: React.SyntheticEvent) {
+    event.preventDefault()
+    if (!draft.trim() || saving) return
+    setSaving(true)
+    const saved = await onAdd(draft)
+    setSaving(false)
+    if (saved) setDraft('')
+  }
+
+  return (
+    <section className="mt-5">
+      <h3 className="text-sm font-medium">Notes d&apos;appel</h3>
+      <form onSubmit={submit} className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-start">
+        <textarea
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            // Ctrl/Cmd + Entrée : enregistrer sans quitter le clavier.
+            if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void submit(event)
+          }}
+          rows={2}
+          placeholder="Compte rendu de l'appel, prochaine étape…"
+          className={fieldCls}
+        />
+        <button
+          type="submit"
+          disabled={saving || !draft.trim()}
+          className="shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-40"
+        >
+          {saving ? 'Enregistrement…' : 'Ajouter'}
+        </button>
+      </form>
+
+      {notes.length === 0 ? (
+        <p className="mt-3 text-xs text-muted">Aucune note pour l&apos;instant.</p>
+      ) : (
+        <ol className="mt-3 space-y-2">
+          {notes.map((note) => {
+            const author = members.find((member) => member.id === note.author_id)
+            return (
+              <li key={note.id} className="rounded-lg border border-line bg-paper/60 px-3 py-2 text-sm">
+                <p className="whitespace-pre-wrap">{note.body}</p>
+                <p className="mt-1 text-xs text-muted">
+                  {author ? memberName(author) : 'Compte supprimé'} · {formatDate(note.created_at)}
+                </p>
+              </li>
+            )
+          })}
+        </ol>
+      )}
+    </section>
+  )
+}
+
 export function LeadsBoard({
   initialLeads,
+  initialNotes,
   members,
   current,
   base,
 }: {
   initialLeads: LeadRow[]
+  initialNotes: LeadNote[]
   members: Member[]
   current: { email: string; member: Member }
   /** '' sur leads.transakautomontlucon.com, '/board' sur le domaine principal. */
@@ -60,13 +206,24 @@ export function LeadsBoard({
 }) {
   const router = useRouter()
   const [leads, setLeads] = useState(initialLeads)
+  const [notes, setNotes] = useState(initialNotes)
   const [openId, setOpenId] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overColumn, setOverColumn] = useState<LeadStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  /** Heure courante côté navigateur, rafraîchie chaque minute pour les rappels dépassés. */
+  const [now, setNow] = useState<number | null>(null)
+
+  useEffect(() => {
+    setNow(Date.now())
+    const timer = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
 
   const supabase = useMemo(() => createBrowserSupabase(), [])
 
-  // Temps réel : une demande envoyée depuis le site apparaît sans rafraîchir.
+  // Temps réel : une demande envoyée depuis le site, ou une note d'un collègue,
+  // apparaît sans rafraîchir.
   useEffect(() => {
     const channel = supabase
       .channel('leads-board')
@@ -81,6 +238,10 @@ export function LeadsBoard({
         const removed = payload.old as Partial<LeadRow>
         setLeads((list) => list.filter((lead) => lead.id !== removed.id))
       })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lead_notes' }, (payload) => {
+        const note = payload.new as LeadNote
+        setNotes((list) => (list.some((item) => item.id === note.id) ? list : [note, ...list]))
+      })
       .subscribe()
 
     return () => {
@@ -88,15 +249,85 @@ export function LeadsBoard({
     }
   }, [supabase])
 
-  /** Mise à jour optimiste : la colonne bouge tout de suite, la base suit. */
-  async function setStatus(id: string, status: LeadStatus) {
-    setLeads((list) => list.map((lead) => (lead.id === id ? { ...lead, status } : lead)))
-    await supabase.from('leads').update({ status }).eq('id', id)
+  /** Notes par fiche, de la plus récente à la plus ancienne. */
+  const notesByLead = useMemo(() => {
+    const map = new Map<string, LeadNote[]>()
+    for (const note of notes) {
+      const list = map.get(note.lead_id)
+      if (list) list.push(note)
+      else map.set(note.lead_id, [note])
+    }
+    for (const list of map.values()) list.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+    return map
+  }, [notes])
+
+  /**
+   * Mise à jour optimiste : la fiche bouge tout de suite, la base suit. Si la
+   * base refuse (statut inconnu de l'enum, droits, réseau), la fiche reprend sa
+   * place et l'erreur s'affiche au lieu d'être perdue en silence — sans quoi la
+   * fiche semblait déplacée puis revenait dans sa colonne au rechargement.
+   */
+  async function patchLead(id: string, patch: LeadPatch) {
+    const previous = leads.find((lead) => lead.id === id)
+    if (!previous) return
+
+    const rollback: LeadPatch = {}
+    for (const key of Object.keys(patch) as (keyof LeadPatch)[]) {
+      ;(rollback as Record<string, unknown>)[key] = previous[key]
+    }
+
+    setError(null)
+    setLeads((list) => list.map((lead) => (lead.id === id ? { ...lead, ...patch } : lead)))
+
+    try {
+      // `select` : sans lui, une mise à jour refusée par RLS répond « ok » avec
+      // zéro ligne modifiée, et on ne saurait pas que rien n'a été enregistré.
+      const { data, error: dbError } = await supabase.from('leads').update(patch).eq('id', id).select('id')
+      if (dbError) throw dbError
+      if (!data || data.length === 0) {
+        throw new Error(
+          'la base n\'a modifié aucune fiche. Session expirée ou compte absent de la table members : rechargez la page et reconnectez-vous.',
+        )
+      }
+    } catch (cause) {
+      // Détail complet dans la console du navigateur, pour le diagnostic.
+      console.error('[leads-board] modification refusée', { id, patch, cause })
+      setLeads((list) => list.map((lead) => (lead.id === id ? { ...lead, ...rollback } : lead)))
+      setError(describeDbError(cause, patch))
+    }
   }
 
-  async function setAssignee(id: string, assigned_to: string | null) {
-    setLeads((list) => list.map((lead) => (lead.id === id ? { ...lead, assigned_to } : lead)))
-    await supabase.from('leads').update({ assigned_to }).eq('id', id)
+  function setStatus(id: string, status: LeadStatus) {
+    return patchLead(id, { status })
+  }
+
+  function setAssignee(id: string, assigned_to: string | null) {
+    return patchLead(id, { assigned_to })
+  }
+
+  function setCallback(id: string, callback_at: string | null) {
+    return patchLead(id, { callback_at })
+  }
+
+  /** Ajoute une note signée par l'utilisateur connecté ; renvoie false si la base refuse. */
+  async function addNote(leadId: string, body: string): Promise<boolean> {
+    setError(null)
+    try {
+      const { data, error: dbError } = await supabase
+        .from('lead_notes')
+        .insert({ lead_id: leadId, author_id: current.member.id, body: body.trim() })
+        .select('*')
+        .single()
+      if (dbError) throw dbError
+      const note = data as LeadNote
+      // Le canal temps réel renvoie aussi la note : on ne l'ajoute qu'une fois.
+      setNotes((list) => (list.some((item) => item.id === note.id) ? list : [note, ...list]))
+      return true
+    } catch (cause) {
+      console.error('[leads-board] note refusée', { leadId, cause })
+      setError(describeDbError(cause))
+      return false
+    }
   }
 
   async function signOut() {
@@ -115,6 +346,7 @@ export function LeadsBoard({
   }
 
   const open = leads.find((lead) => lead.id === openId) ?? null
+  const openNotes = open ? (notesByLead.get(open.id) ?? []) : []
   const isAdmin = current.member.role === 'admin'
 
   return (
@@ -144,11 +376,28 @@ export function LeadsBoard({
         </div>
       </header>
 
+      {error && (
+        <div
+          role="alert"
+          className="flex shrink-0 items-start justify-between gap-4 border-b border-red-200 bg-red-50 px-5 py-3 text-sm text-red-800"
+        >
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="shrink-0 font-medium underline-offset-2 hover:underline"
+          >
+            Fermer
+          </button>
+        </div>
+      )}
+
       {/* `min-h-0` : sans lui, une colonne pleine pousserait la hauteur
           au lieu de faire défiler son propre contenu. */}
       <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-5">
         {LEAD_STATUSES.map((column) => {
           const columnLeads = leads.filter((lead) => lead.status === column.key)
+          if (column.key === 'a_rappeler') columnLeads.sort(byCallback)
           const isOver = overColumn === column.key && dragId !== null
 
           return (
@@ -175,6 +424,8 @@ export function LeadsBoard({
               >
                 {columnLeads.map((lead) => {
                   const assignee = members.find((member) => member.id === lead.assigned_to)
+                  const leadNotes = notesByLead.get(lead.id) ?? []
+                  const lastNote = leadNotes[0]
                   const isDragging = dragId === lead.id
 
                   return (
@@ -215,6 +466,19 @@ export function LeadsBoard({
                       </div>
 
                       <p className="mt-1 text-xs text-muted">{summaryLine(lead)}</p>
+
+                      {lead.callback_at && (
+                        <p className="mt-2">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              CALLBACK_STYLES[callbackTone(lead.callback_at, now)]
+                            }`}
+                          >
+                            Rappel {formatCallback(lead.callback_at)}
+                          </span>
+                        </p>
+                      )}
+
                       <p className="mt-2 text-sm font-medium">
                         {lead.first_name} {lead.last_name}
                       </p>
@@ -228,6 +492,15 @@ export function LeadsBoard({
                         </span>
                         <span className="text-xs text-muted">{formatDate(lead.created_at)}</span>
                       </div>
+
+                      {lastNote && (
+                        <p className="mt-2 truncate text-xs text-graphite" title={lastNote.body}>
+                          <span className="text-muted">
+                            Note{leadNotes.length > 1 ? ` (${leadNotes.length})` : ''} ·
+                          </span>{' '}
+                          {lastNote.body}
+                        </p>
+                      )}
 
                       <div className="mt-3 flex items-center gap-2">
                         {lead.phone && (
@@ -297,21 +570,52 @@ export function LeadsBoard({
               </button>
             </div>
 
-            <label className="mt-5 block text-sm font-medium">
-              Commercial en charge
-              <select
-                value={open.assigned_to ?? ''}
-                onChange={(event) => setAssignee(open.id, event.target.value || null)}
-                className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm outline-none focus:border-ink"
-              >
-                <option value="">Non attribué</option>
-                {members.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {memberName(member)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium">
+                Commercial en charge
+                <select
+                  value={open.assigned_to ?? ''}
+                  onChange={(event) => setAssignee(open.id, event.target.value || null)}
+                  className={`${fieldCls} mt-1`}
+                >
+                  <option value="">Non attribué</option>
+                  {members.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {memberName(member)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block text-sm font-medium">
+                Date de rappel
+                <span className="mt-1 flex gap-2">
+                  <input
+                    type="datetime-local"
+                    value={toLocalInput(open.callback_at)}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      if (!value) return void setCallback(open.id, null)
+                      const date = new Date(value)
+                      if (!Number.isNaN(date.getTime())) void setCallback(open.id, date.toISOString())
+                    }}
+                    className={fieldCls}
+                  />
+                  {open.callback_at && (
+                    <button
+                      type="button"
+                      onClick={() => setCallback(open.id, null)}
+                      className="shrink-0 rounded-lg border border-line px-3 text-sm text-graphite hover:border-ink hover:text-ink"
+                    >
+                      Effacer
+                    </button>
+                  )}
+                </span>
+                <span className="mt-1 block text-xs font-normal text-muted">
+                  Affichée sur la fiche ; la colonne « À rappeler » est triée par cette date.
+                </span>
+              </label>
+            </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {LEAD_STATUSES.map((status) => (
@@ -329,6 +633,9 @@ export function LeadsBoard({
                 </button>
               ))}
             </div>
+
+            {/* `key` : le brouillon de note repart à vide quand on change de fiche. */}
+            <NotesPanel key={open.id} notes={openNotes} members={members} onAdd={(body) => addNote(open.id, body)} />
 
             <dl className="mt-5 divide-y divide-line text-sm">
               {leadRows(rowToLead(open)).map(([label, value]) => (

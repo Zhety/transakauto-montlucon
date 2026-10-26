@@ -9,7 +9,8 @@ export const runtime = 'nodejs'
 const roleSchema = z.enum(MEMBER_ROLES.map((role) => role.key) as ['admin', 'commercial'])
 
 const createSchema = z.object({
-  email: z.string().trim().email('Email invalide').max(160),
+  // Vide : la personne n'ouvre pas le tableau, c'est un nom à qui attribuer des leads.
+  email: z.union([z.literal(''), z.string().trim().email('Email invalide').max(160)]).optional(),
   password: z.string().min(10, 'Mot de passe : 10 caractères minimum').max(128).optional(),
   firstName: z.string().trim().min(1, 'Prénom requis').max(60),
   lastName: z.string().trim().max(60).optional(),
@@ -57,10 +58,27 @@ export async function POST(request: Request) {
   const parsed = createSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return invalid(parsed.error.issues)
 
-  const { email, firstName, lastName, role } = parsed.data
-  const password = parsed.data.password ?? generatePassword()
+  const { firstName, lastName, role } = parsed.data
+  const email = parsed.data.email || null
   const admin = createAdminSupabase()
 
+  // Sans email : simple fiche `members`, sans compte de connexion (migration 006).
+  if (!email) {
+    const { data: member, error } = await admin
+      .from('members')
+      .insert({ first_name: firstName, last_name: lastName || null, role })
+      .select('id')
+      .single()
+    if (error || !member) {
+      return NextResponse.json({ ok: false, errors: [error?.message ?? 'Création impossible'] }, { status: 500 })
+    }
+    return NextResponse.json({
+      ok: true,
+      member: { id: member.id, first_name: firstName, last_name: lastName || null, role, email: '' },
+    })
+  }
+
+  const password = parsed.data.password ?? generatePassword()
   const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true })
   if (error || !data.user) {
     const message = /already|exists|registered/i.test(error?.message ?? '')
@@ -120,10 +138,20 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: false, errors: ['Vous ne pouvez pas supprimer votre propre compte'] }, { status: 400 })
   }
 
-  // La suppression du compte auth entraîne celle de la ligne `members`
-  // (clé étrangère en cascade) ; les leads qui lui étaient attribués repassent
-  // en « non attribué ».
-  const { error } = await createAdminSupabase().auth.admin.deleteUser(id)
+  const admin = createAdminSupabase()
+
+  // Compte de connexion éventuel : un commercial sans compte n'existe que dans
+  // `members`, et depuis la migration 006 la suppression du compte n'entraîne
+  // plus celle de la fiche. On supprime donc les deux explicitement.
+  const { data: found } = await admin.auth.admin.getUserById(id)
+  if (found?.user) {
+    const { error } = await admin.auth.admin.deleteUser(id)
+    if (error) return NextResponse.json({ ok: false, errors: [error.message] }, { status: 500 })
+  }
+
+  // Les leads qui lui étaient attribués repassent en « non attribué », ses notes
+  // restent (auteur effacé).
+  const { error } = await admin.from('members').delete().eq('id', id)
   if (error) return NextResponse.json({ ok: false, errors: [error.message] }, { status: 500 })
 
   return NextResponse.json({ ok: true })

@@ -244,9 +244,19 @@ vers `/board`, le site public et le tableau vivent donc dans le même déploieme
 - **Connexion** : Supabase Auth, email + mot de passe. Un compte doit exister dans
   Authentication → Users **et** être déclaré dans la table `members`, sinon les règles RLS ne
   laissent rien voir.
+- **Commerciaux** : la table `members` liste toute l'équipe. Une personne sans compte (pas
+  d'email) n'ouvre pas le tableau mais peut recevoir des leads dans « Commercial en charge ».
+  Les trois commerciaux de l'agence (Gabriel Haddad, Jordan Pauchard, Hugo Renaud) sont créés
+  par la migration `006`.
 - **Kanban** : quatre colonnes — À traiter, Ne répond pas, Non RDV, Oui RDV.
 - **Temps réel** : une demande envoyée depuis le site apparaît sans rafraîchir.
 - **Fiche détaillée** : elle réutilise `leadRows()`, le récapitulatif des emails.
+- **Notes d'appel** : chaque fiche a un journal (table `lead_notes`) — une note par appel,
+  horodatée et signée par son auteur, sans modification ni suppression possible depuis le
+  tableau : c'est une trace. La dernière note s'affiche en résumé sur la carte.
+- **Date de rappel** : `leads.callback_at`, saisie sur la fiche. Elle s'affiche sur la carte
+  (rouge si dépassée, magenta si c'est aujourd'hui) et trie la colonne « À rappeler », le
+  prochain rappel en premier.
 
 ### Mise en route
 
@@ -256,9 +266,16 @@ vers `/board`, le site public et le tableau vivent donc dans le même déploieme
 3. Renseigner `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` et
    `SUPABASE_SERVICE_ROLE_KEY` en local et dans Vercel.
 4. Créer les comptes dans Authentication → Users, puis les insérer dans `members` (l'`id` est
-   celui du compte).
+   celui du compte). Ensuite, la page **Utilisateurs** du tableau gère l'équipe : avec un email,
+   la personne reçoit un compte (mot de passe généré, affiché une seule fois) ; sans email, c'est
+   un simple nom à qui attribuer des leads, sans accès au tableau.
 5. Chez OVH, ajouter un `CNAME` `leads` vers `cname.vercel-dns.com.` (le domaine est déjà
    rattaché au projet Vercel).
+
+Base déjà en service : ne pas rejouer `schema.sql`, exécuter les migrations de
+[`supabase/migrations/`](supabase/migrations/) dans l'ordre (`004` seule dans sa requête, puis
+`005` et `006`). Tant qu'une migration manque, le tableau le signale dans un bandeau rouge au premier
+enregistrement refusé.
 
 La route `/api/lead` écrit en base avec la clé de service, en parallèle de l'envoi des emails :
 si Supabase est indisponible, la demande part quand même par email.

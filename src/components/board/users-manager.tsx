@@ -55,8 +55,8 @@ export function UsersManager({
 
     try {
       const data = await call('POST', {
-        email: draft.email,
-        password: draft.password || undefined,
+        email: draft.email || undefined,
+        password: draft.email ? draft.password || undefined : undefined,
         firstName: draft.firstName,
         lastName: draft.lastName || undefined,
         role: draft.role,
@@ -99,7 +99,7 @@ export function UsersManager({
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Utilisateurs</h1>
-          <p className="mt-1 text-sm text-muted">Comptes autorisés à ouvrir le tableau des leads.</p>
+          <p className="mt-1 text-sm text-muted">Comptes autorisés à ouvrir le tableau, et commerciaux à qui attribuer les leads.</p>
         </div>
         <Link
           href={boardHref(base, '')}
@@ -139,21 +139,27 @@ export function UsersManager({
                   {memberName(member)}
                   {isSelf && <span className="ml-2 text-xs text-muted">(vous)</span>}
                 </p>
-                <p className="truncate text-sm text-muted">{member.email || '—'}</p>
+                <p className="truncate text-sm text-muted">
+                  {member.email || 'Attribution des leads seulement — pas d’accès au tableau'}
+                </p>
               </div>
 
-              <select
-                value={member.role}
-                disabled={isSelf}
-                onChange={(event) => changeRole(member.id, event.target.value as MemberRole)}
-                className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm outline-none focus:border-ink disabled:opacity-60"
-              >
-                {MEMBER_ROLES.map((role) => (
-                  <option key={role.key} value={role.key}>
-                    {role.label}
-                  </option>
-                ))}
-              </select>
+              {member.email ? (
+                <select
+                  value={member.role}
+                  disabled={isSelf}
+                  onChange={(event) => changeRole(member.id, event.target.value as MemberRole)}
+                  className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm outline-none focus:border-ink disabled:opacity-60"
+                >
+                  {MEMBER_ROLES.map((role) => (
+                    <option key={role.key} value={role.key}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="rounded-full bg-line px-3 py-1 text-xs text-graphite">Sans compte</span>
+              )}
 
               {confirmDelete === member.id ? (
                 <div className="flex gap-2">
@@ -188,7 +194,11 @@ export function UsersManager({
       </div>
 
       <form onSubmit={create} className="mt-8 rounded-2xl border border-line bg-card p-5 sm:p-6">
-        <h2 className="text-lg font-semibold tracking-tight">Ajouter un utilisateur</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Ajouter une personne</h2>
+        <p className="mt-1 text-sm text-muted">
+          Avec un email, la personne reçoit un compte pour ouvrir le tableau. Sans email, c’est un
+          commercial à qui attribuer des leads, sans accès.
+        </p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
@@ -211,11 +221,12 @@ export function UsersManager({
             />
           </div>
           <div>
-            <label className={labelCls} htmlFor="email">Email *</label>
+            <label className={labelCls} htmlFor="email">
+              Email <span className="font-normal text-muted">(vide = sans accès au tableau)</span>
+            </label>
             <input
               id="email"
               type="email"
-              required
               autoComplete="off"
               className={field}
               value={draft.email}
@@ -244,6 +255,7 @@ export function UsersManager({
             <input
               id="password"
               type="text"
+              disabled={!draft.email}
               autoComplete="new-password"
               minLength={10}
               className={field}
@@ -259,7 +271,7 @@ export function UsersManager({
           disabled={submitting}
           className="mt-5 rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submitting ? 'Création…' : 'Créer le compte'}
+          {submitting ? 'Création…' : draft.email ? 'Créer le compte' : 'Ajouter'}
         </button>
       </form>
     </div>

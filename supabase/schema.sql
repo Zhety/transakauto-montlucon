@@ -4,13 +4,14 @@
 -- Statuts du kanban, dans l'ordre des colonnes.
 create type lead_status as enum ('a_traiter', 'ne_repond_pas', 'non_rdv', 'oui_rdv');
 
--- Les commerciaux qui peuvent se voir attribuer un lead. Un membre est créé
--- pour chaque compte autorisé à ouvrir le tableau.
+-- L'équipe : toute personne à qui un lead peut être attribué. Quand la personne
+-- ouvre le tableau, son `id` est celui de son compte auth (c'est ce que vérifie
+-- `is_member()`) ; un commercial sans compte a un simple identifiant généré.
 -- Rôles : un admin gère les utilisateurs, un commercial travaille les leads.
 create type member_role as enum ('admin', 'commercial');
 
 create table if not exists public.members (
-  id uuid primary key references auth.users (id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
   first_name text not null,
   last_name text,
   role member_role not null default 'commercial',
@@ -23,6 +24,9 @@ create table if not exists public.leads (
 
   status lead_status not null default 'a_traiter',
   assigned_to uuid references public.members (id) on delete set null,
+  -- Date de rappel convenue avec le vendeur (affichée sur la fiche, trie la
+  -- colonne « À rappeler »).
+  callback_at timestamptz,
 
   intent text not null check (intent in ('estimation', 'reprise')),
 
@@ -108,8 +112,39 @@ create policy "membres lisent les membres"
   to authenticated
   using (public.is_member());
 
--- Diffusion temps réel : un nouveau lead apparaît sans rafraîchir la page.
+-- Journal des appels : une ligne par note, horodatée et signée. Les notes ne
+-- se modifient ni ne se suppriment depuis le tableau : c'est une trace.
+create table if not exists public.lead_notes (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.leads (id) on delete cascade,
+  author_id uuid references public.members (id) on delete set null,
+  body text not null check (length(btrim(body)) > 0),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists lead_notes_lead_id_created_at_idx
+  on public.lead_notes (lead_id, created_at desc);
+
+alter table public.lead_notes enable row level security;
+
+create policy "membres lisent les notes"
+  on public.lead_notes for select
+  to authenticated
+  using (public.is_member());
+
+create policy "membres ajoutent des notes"
+  on public.lead_notes for insert
+  to authenticated
+  with check (public.is_member() and author_id = auth.uid());
+
+-- Diffusion temps réel : un nouveau lead ou une note apparaît sans rafraîchir.
 alter publication supabase_realtime add table public.leads;
+alter publication supabase_realtime add table public.lead_notes;
+
+-- Les commerciaux de l'agence, sans compte : ils n'apparaissent que dans
+-- « Commercial en charge ».
+insert into public.members (first_name, last_name, role)
+values ('Gabriel', 'HADDAD', 'commercial'), ('Jordan', 'PAUCHARD', 'commercial'), ('Hugo', 'RENAUD', 'commercial');
 
 -- Les utilisateurs se créent depuis le tableau (page Utilisateurs, réservée aux
 -- admins) : la route serveur crée le compte et la ligne `members` avec la clé

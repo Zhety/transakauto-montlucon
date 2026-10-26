@@ -38,6 +38,8 @@ export interface LeadRow {
   created_at: string
   status: LeadStatus
   assigned_to: string | null
+  /** Date de rappel convenue avec le vendeur, null si aucune (migration 005). */
+  callback_at: string | null
   intent: LeadIntent
   make: string | null
   model: string | null
@@ -66,6 +68,16 @@ export interface LeadRow {
   source: string | null
   utm: Record<string, string> | null
   meta_lead_id: string | null
+}
+
+/** Ligne de la table `lead_notes` : une note du journal des appels (migration 005). */
+export interface LeadNote {
+  id: string
+  lead_id: string
+  /** Null si le compte de l'auteur a été supprimé. */
+  author_id: string | null
+  body: string
+  created_at: string
 }
 
 /** Passe d'une demande validée à la ligne à insérer. */
