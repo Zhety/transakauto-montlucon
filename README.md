@@ -282,13 +282,14 @@ si Supabase est indisponible, la demande part quand même par email.
 
 ### Déploiement depuis ce dossier
 
-Le projet Vercel appartient à l'équipe `transak-metz` (compte de François). Depuis que le dossier
-est un dépôt Git au nom de Théo, `npx vercel --prod` est **refusé** : « the commit author doesn't
-have permission to create deployments for this project ». Deux contournements :
+Le projet Vercel appartient à l'équipe `transak-metz` (compte de François), en plan Hobby. Sur ce
+plan, Vercel **bloque** les commits d'un auteur qui n'est pas membre du projet (« Deployment was
+blocked »)… mais seulement pour les dépôts **privés**. Le dépôt GitHub est donc **public** depuis
+le 26 octobre 2026 : un `git push` sur `main` déploie en production sans autre manipulation.
+Ne pas le repasser en privé sans transférer d'abord le projet Vercel sur un compte de l'agence.
 
-- ajouter le compte GitHub/Vercel de Théo à l'équipe `transak-metz` (solution durable) ;
-- ou masquer le dossier Git le temps du déploiement :
-  `mv .git .git-off && npx vercel --yes --prod; mv .git-off .git`
+Le dépôt ne contient aucun secret : les variables vivent dans Vercel et dans `.env.local`
+(ignoré par Git). Garder cette règle.
 
 ## Leads Meta (formulaires instantanés)
 
