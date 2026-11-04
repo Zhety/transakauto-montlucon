@@ -8,6 +8,16 @@ const nextConfig: NextConfig = {
    */
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
 
+  /**
+   * Plaquette PDF : @react-pdf/renderer et sharp restent des modules Node
+   * classiques (pas de bundling), et la fonction emporte les polices Poppins
+   * et le logo qu'elle lit sur le disque.
+   */
+  serverExternalPackages: ["@react-pdf/renderer", "sharp"],
+  outputFileTracingIncludes: {
+    "/api/board/plaquette": ["./src/assets/fonts/*.ttf", "./public/transakauto-logo.png"],
+  },
+
   /** Une seule URL canonique : le www renvoie vers le domaine nu. */
   async redirects() {
     return [

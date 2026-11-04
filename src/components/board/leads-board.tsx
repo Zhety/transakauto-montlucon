@@ -415,6 +415,12 @@ export function LeadsBoard({
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden text-sm text-muted sm:block">{memberName(current.member)}</span>
+          <Link
+            href={boardHref(base, 'plaquette')}
+            className="rounded-full border border-line px-4 py-1.5 text-sm text-graphite transition-colors hover:border-ink hover:text-ink"
+          >
+            Plaquette PDF
+          </Link>
           {isAdmin && (
             <Link
               href={boardHref(base, 'users')}

@@ -10,8 +10,8 @@ export function boardBase(host: string | null): string {
   return host?.startsWith('leads.') ? '' : '/board'
 }
 
-/** Chemin d'une page du tableau depuis sa base : ('', 'users') → '/users'. */
-export function boardHref(base: string, page: '' | 'login' | 'users'): string {
+/** Chemin d'une page du tableau depuis sa base : ('', 'users') → '/users', ('', 'plaquette') → '/plaquette'. */
+export function boardHref(base: string, page: '' | 'login' | 'users' | 'plaquette'): string {
   const path = `${base}/${page}`.replace(/\/+$/, '')
   return path === '' ? '/' : path
 }

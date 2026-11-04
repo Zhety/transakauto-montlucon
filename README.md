@@ -292,6 +292,62 @@ Ne pas le repasser en privé sans transférer d'abord le projet Vercel sur un co
 Le dépôt ne contient aucun secret : les variables vivent dans Vercel et dans `.env.local`
 (ignoré par Git). Garder cette règle.
 
+## Plaquette PDF
+
+Onglet **Plaquette PDF** du tableau (`leads.<domaine>/plaquette`) : on colle le lien d'une fiche
+mandat mytransak, la plaquette de présentation du véhicule se télécharge, prête à être envoyée aux
+acheteurs. Même chose depuis le terminal :
+
+```bash
+npm run plaquette -- "https://mytransak.transakauto.com/shop-montlucon-201/mandat/37906/details"
+npm run plaquette -- <lien> plaquette.pdf --sans-agent   # sans appel à l'agent
+```
+
+### Agent local, sans frais : la commande `/plaquette` de Claude Code
+
+L'agence ne veut pas payer d'API. L'agent rédacteur est donc Claude Code sur le Mac de l'agence,
+couvert par l'abonnement : la skill `~/.claude/skills/plaquette/SKILL.md` enchaîne
+`npm run plaquette -- <lien> --preparer` (fiche, photos et planches-contact numérotées dans
+`plaquettes/<ref>/`), la rédaction de `contenu.json` par Claude Code après lecture des planches,
+puis `npm run plaquette -- <lien> --contenu plaquettes/<ref>/contenu.json` qui met en page sans
+appeler aucun modèle. Dans Claude Code : `/plaquette <lien mytransak>`. Le dossier `plaquettes/`
+est ignoré par Git.
+
+L'onglet du site, lui, ne dispose d'aucun agent tant qu'aucune `ANTHROPIC_API_KEY` n'est
+configurée : il produit la version générique (photos dans l'ordre, sans légendes).
+
+Ce que fait la route `POST /api/board/plaquette` (`src/lib/plaquette/`) :
+
+1. **Connexion à mytransak** (`mytransak-auth.ts`) par le bouton « Se connecter avec Seenaps » :
+   SAML en HTTP pur, session gardée en mémoire et rouverte quand elle expire. Identifiants dans
+   `MYTRANSAK_EMAIL` / `MYTRANSAK_PASSWORD`.
+2. **Lecture des onglets** Informations, Photos et Équipements du mandat (`mytransak-scrape.ts`) :
+   prix de vente, frais d'intermédiation, commercial, fiche véhicule, carte grise, photos dans
+   l'ordre du reportage, options enregistrées et dotation Autorigin. Rien d'interne (prix net
+   vendeur, marge, vendeur, VIN) ne sort du scraper vers le PDF.
+3. **Photos** redimensionnées avec sharp (`photos.ts`) pour un PDF de 2 à 4 Mo.
+4. **Agent** (`agent.ts`, Claude via `ANTHROPIC_API_KEY`) : regarde toutes les photos et les
+   données, choisit les 4 photos « points forts », 6 extérieures et 6 intérieures, écrit les
+   légendes, les 8 points forts et l'accroche, estime la valeur neuve. Sortie structurée (zod),
+   revalidée dans `content.ts`. Sans clé ou en cas d'erreur, la plaquette sort quand même avec un
+   contenu générique (photos dans l'ordre, sans légendes).
+5. **Mise en page** (`pdf.ts`, @react-pdf/renderer, Poppins embarquée dans `src/assets/fonts`) :
+   7 pages A4 — couverture noire avec la **première photo du reportage** (toujours elle), points
+   forts, extérieur, intérieur, fiche technique et équipements, galerie complète, garantie et
+   contact.
+
+Règles de contenu voulues par l'agence : jamais le mot « obligatoires » à côté des frais
+d'intermédiation ; mention « des erreurs peuvent se glisser dans ce document » en couverture et
+dans les mentions légales ; aucune donnée calculée (pas de capacité de remorquage ni de charge
+utile) ; grille de garantie **Standard** (690 / 890 / 1 290 €) ou **Haut de gamme** (990 / 1 290 /
+1 890 €, pour les 4x4, plus de 14 CV fiscaux ou plus de 50 000 € neuf), le choix étant fait par
+le code d'après la carte grise et l'estimation de l'agent (`decideWarranty`). Les tarifs et le
+détail des frais vivent dans `src/lib/plaquette/content.ts`.
+
+Variables à reporter dans Vercel : `MYTRANSAK_EMAIL`, `MYTRANSAK_PASSWORD`, `ANTHROPIC_API_KEY`
+(facultatif : `PLAQUETTE_MODEL`). La route déclare `maxDuration = 300` ; si Vercel refuse cette
+valeur au déploiement, la ramener à 60 dans `src/app/api/board/plaquette/route.ts`.
+
 ## Leads Meta (formulaires instantanés)
 
 Les formulaires instantanés Facebook / Instagram ne passent pas par le site : le prospect ne le

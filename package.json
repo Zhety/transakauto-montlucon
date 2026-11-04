@@ -6,15 +6,20 @@
     "dev": "next dev -p 3200",
     "build": "next build",
     "start": "next start -p 3200",
-    "test:mail": "node --env-file=.env.local scripts/test-mail.mjs"
+    "test:mail": "node --env-file=.env.local scripts/test-mail.mjs",
+    "plaquette": "tsx --env-file-if-exists=.env.local scripts/plaquette.mts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
+    "@react-pdf/renderer": "^4.9.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
+    "cheerio": "^1.2.0",
     "next": "^15.5.0",
     "nodemailer": "^9.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sharp": "^0.35.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -24,6 +29,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.6.0"
   }
 }

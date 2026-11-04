@@ -11,3 +11,6 @@ next-env.d.ts
 .vercel
 .env*
 !.env.local.example
+
+# Dossiers de travail des plaquettes PDF (photos, contenus, PDF générés)
+plaquettes/
