@@ -1,9 +1,3 @@
-UID_="$(id -u)"
-launchctl bootout "gui/$UID_/$LABEL" 2>/dev/null || true
-# Le retrait est asynchrone : relancer tout de suite échoue avec « Input/output error ».
-for _ in $(seq 1 30); do launchctl print "gui/$UID_/$LABEL" >/dev/null 2>&1 || break; sleep 0.5; done
-launchctl bootstrap "gui/$UID_" "$PLIST" || { sleep 2; launchctl bootstrap "gui/$UID_" "$PLIST"; }
-launchctl kickstart -k "gui/$UID_/$LABEL"
 #!/bin/bash
 # Installe le service « plaquettes » comme agent launchd de l'utilisateur :
 # il démarre à l'ouverture de session et redémarre tout seul s'il s'arrête.
@@ -50,9 +44,12 @@ cat > "$PLIST" <<EOF
 </plist>
 EOF
 
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
-launchctl kickstart -k "gui/$(id -u)/$LABEL"
+UID_="$(id -u)"
+launchctl bootout "gui/$UID_/$LABEL" 2>/dev/null || true
+# Le retrait est asynchrone : relancer tout de suite échoue avec « Input/output error ».
+for _ in $(seq 1 30); do launchctl print "gui/$UID_/$LABEL" >/dev/null 2>&1 || break; sleep 0.5; done
+launchctl bootstrap "gui/$UID_" "$PLIST" || { sleep 2; launchctl bootstrap "gui/$UID_" "$PLIST"; }
+launchctl kickstart -k "gui/$UID_/$LABEL"
 echo "Service installé : $PLIST"
 echo "Journal : $LOG_DIR/worker.log"
 sleep 3
