@@ -303,18 +303,29 @@ npm run plaquette -- "https://mytransak.transakauto.com/shop-montlucon-201/manda
 npm run plaquette -- <lien> plaquette.pdf --sans-agent   # sans appel à l'agent
 ```
 
-### Agent local, sans frais : la commande `/plaquette` de Claude Code
+### Agent sans frais : Claude Code sur le Mac de l'agence
 
 L'agence ne veut pas payer d'API. L'agent rédacteur est donc Claude Code sur le Mac de l'agence,
-couvert par l'abonnement : la skill `~/.claude/skills/plaquette/SKILL.md` enchaîne
-`npm run plaquette -- <lien> --preparer` (fiche, photos et planches-contact numérotées dans
-`plaquettes/<ref>/`), la rédaction de `contenu.json` par Claude Code après lecture des planches,
-puis `npm run plaquette -- <lien> --contenu plaquettes/<ref>/contenu.json` qui met en page sans
-appeler aucun modèle. Dans Claude Code : `/plaquette <lien mytransak>`. Le dossier `plaquettes/`
-est ignoré par Git.
+couvert par l'abonnement, lancé en mode automatique (`claude -p`, binaire du CLI ou celui embarqué
+par l'extension VS Code, voir `src/lib/plaquette/claude-code.ts`). Deux circuits :
 
-L'onglet du site, lui, ne dispose d'aucun agent tant qu'aucune `ANTHROPIC_API_KEY` n'est
-configurée : il produit la version générique (photos dans l'ordre, sans légendes).
+- **Depuis le site** : l'onglet dépose une demande dans la table `plaquettes` (migration `008`,
+  bucket de stockage `plaquettes`). Le service `scripts/plaquette-worker.mts` tourne sur le Mac,
+  interroge `GET /api/board/plaquette/worker?action=claim` toutes les 15 s avec le jeton
+  `PLAQUETTE_WORKER_TOKEN` (même valeur dans Vercel et dans `.env.local` du Mac), lit la fiche,
+  prépare le dossier de travail, fait rédiger le contenu par Claude Code, met en page et dépose le
+  PDF (`?action=done`). L'onglet affiche la file, l'état « agent connecté / hors ligne » et le
+  bouton Télécharger (lien signé, une heure). Installation permanente sur le Mac :
+  `bash scripts/install-worker.sh` (agent launchd `com.transakauto.plaquette-worker`, journal dans
+  `plaquettes/worker.log`) ; retrait : `bash scripts/uninstall-worker.sh`. Test sans le site :
+  `npm run plaquette:worker -- --une-fois <lien>`.
+- **À la main dans Claude Code** : `/plaquette <lien mytransak>` (skill
+  `~/.claude/skills/plaquette/SKILL.md`) enchaîne `--preparer`, la rédaction de `contenu.json`
+  après lecture des planches-contact, puis `--contenu`.
+
+Le bouton « Version rapide » de l'onglet reste produit par le site lui-même, sans agent : photos
+dans l'ordre, sans légendes. Le dossier `plaquettes/` est ignoré par Git. Si le Mac est éteint,
+les demandes attendent ; rien n'est perdu.
 
 Ce que fait la route `POST /api/board/plaquette` (`src/lib/plaquette/`) :
 

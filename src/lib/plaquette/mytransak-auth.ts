@@ -72,13 +72,19 @@ async function follow(jar: CookieJar, url: string, options: FollowOptions = {}):
     if (options.referer) headers.Referer = options.referer
     if (body !== undefined) headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
-    const response = await fetch(current, {
-      method,
-      headers,
-      body,
-      redirect: 'manual',
-      signal: AbortSignal.timeout(30_000),
-    })
+    let response: Response
+    try {
+      response = await fetch(current, {
+        method,
+        headers,
+        body,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(45_000),
+      })
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      throw new PlaquetteError(`${new URL(current).host} ne répond pas (${reason})`, 'upstream')
+    }
     jar.absorb(current, response)
 
     // Seenaps répond 302 sans Location mais avec le formulaire SAMLResponse dans
@@ -129,8 +135,11 @@ async function login(): Promise<CookieJar> {
 
   // 1. mytransak → IdP Seenaps (formulaire identifiant / mot de passe).
   const idp = await follow(jar, `${MYTRANSAK_BASE}/saml/login`)
+  if (idp.status >= 500) {
+    throw new PlaquetteError(`mytransak est indisponible pour le moment (HTTP ${idp.status}) : réessayez plus tard`, 'upstream')
+  }
   const loginForm = extractForm(idp.body, 'input[name="password"]')
-  if (!loginForm) throw new PlaquetteError('Page de connexion Seenaps inattendue', 'upstream')
+  if (!loginForm) throw new PlaquetteError(`Page de connexion Seenaps inattendue (HTTP ${idp.status} sur ${new URL(idp.url).host})`, 'upstream')
 
   // 2. Identifiants → l'IdP renvoie le formulaire SAMLResponse auto-soumis.
   const back = await follow(jar, new URL(loginForm.action || idp.url, idp.url).toString(), {

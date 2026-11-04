@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3200",
     "test:mail": "node --env-file=.env.local scripts/test-mail.mjs",
-    "plaquette": "tsx --env-file-if-exists=.env.local scripts/plaquette.mts"
+    "plaquette": "tsx --env-file-if-exists=.env.local scripts/plaquette.mts",
+    "plaquette:worker": "tsx --env-file-if-exists=.env.local scripts/plaquette-worker.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",
