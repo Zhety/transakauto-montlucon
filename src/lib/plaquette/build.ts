@@ -1,3 +1,4 @@
+import { requireAgency } from './agencies'
 import { agentSchema, isClaudeConfigured, runBrochureAgentClaude, type AgentOutput } from './agent'
 import { fallbackContent, mergeAgentContent, type BrochureContent } from './content'
 import { fetchMytransakBinary, fetchMytransakPage } from './mytransak-auth'
@@ -50,6 +51,7 @@ export function filenameFor(dossier: VehicleDossier): string {
 /** Fiche mandat + photos redimensionnées, à partir d'un lien mytransak. */
 export async function loadDossier(input: string, log: (step: string) => void = () => {}): Promise<LoadedDossier> {
   const { shop, id } = parseMandateUrl(input)
+  requireAgency(shop)
 
   log('Lecture de la fiche mandat')
   const dossier = await scrapeMandate(shop, id, fetchMytransakPage, input.startsWith('http') ? input : undefined)

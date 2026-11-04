@@ -3,7 +3,7 @@ import path from 'node:path'
 import React from 'react'
 import type * as Renderer from '@react-pdf/renderer'
 import type { Style } from '@react-pdf/types'
-import { SITE } from '@/lib/site'
+import { agencyForShop, type Agency } from './agencies'
 import {
   DISCLAIMER,
   FEES_DETAIL,
@@ -16,7 +16,7 @@ import {
   type BrochureContent,
   type PhotoPick,
 } from './content'
-import type { PhotoAsset, VehicleDossier } from './types'
+import { PlaquetteError, type PhotoAsset, type VehicleDossier } from './types'
 
 /**
  * Mise en page « magazine » (format C validé par l'agence) : couverture noire
@@ -119,7 +119,7 @@ function topBar(label: string) {
   )
 }
 
-function footer() {
+function footer(agency: Agency) {
   return h(
     View,
     {
@@ -138,8 +138,8 @@ function footer() {
     h(
       Text,
       { style: { fontSize: 7.5, color: C.muted } },
-      h(Text, { style: { fontWeight: 600, color: C.ink } }, SITE.name),
-      ` · ${SITE.phoneDisplay}`,
+      h(Text, { style: { fontWeight: 600, color: C.ink } }, agency.name),
+      ` · ${agency.phoneDisplay}`,
     ),
     h(Text, {
       style: { fontSize: 7.5, color: C.muted },
@@ -148,14 +148,19 @@ function footer() {
   )
 }
 
-function innerPage(label: string, ...children: React.ReactNode[]) {
+interface Frame {
+  label: string
+  agency: Agency
+}
+
+function innerPage(frame: Frame, ...children: React.ReactNode[]) {
   return h(
     Page,
     // Pas de `wrap: false` ici : react-pdf ajusterait alors la page à son contenu.
     { size: 'A4', style: { width: PAGE_W, height: PAGE_H, fontFamily: 'Poppins', backgroundColor: '#ffffff', color: C.ink } },
-    topBar(label),
+    topBar(frame.label),
     h(View, { style: { paddingTop: mm(10), paddingHorizontal: mm(14) } }, ...children),
-    footer(),
+    footer(frame.agency),
   )
 }
 
@@ -209,9 +214,15 @@ function checkIcon() {
 
 /* ------------------------------------------------------------------- pages */
 
-function coverPage(dossier: VehicleDossier, content: BrochureContent, assets: PhotoAsset[]) {
+function coverPage(agency: Agency, dossier: VehicleDossier, content: BrochureContent, assets: PhotoAsset[]) {
   const heroH = mm(186)
   const hero = assets[0]
+  // Jamais de recadrage en largeur : une photo paysage occupe toute la largeur
+  // sur sa hauteur naturelle (la bande noire restante porte le titre), une
+  // photo en portrait tient entière dans la zone.
+  const ratio = hero?.width && hero?.height ? hero.width / hero.height : 4 / 3
+  const imgH = ratio < 1 ? heroH : Math.min(heroH, PAGE_W / ratio)
+  const heroStyle: Style = { position: 'absolute', top: 0, left: 0, width: PAGE_W, height: imgH, objectFit: ratio < 1 ? 'contain' : 'cover' }
   const stats = buildStats(dossier)
   const price = dossier.priceEur
   const fees = dossier.feesEur
@@ -256,11 +267,11 @@ function coverPage(dossier: VehicleDossier, content: BrochureContent, assets: Ph
       View,
       { style: { height: heroH, position: 'relative' } },
       hero
-        ? h(Image, { src: jpg(hero.hero ?? hero.large), style: { position: 'absolute', top: 0, left: 0, width: PAGE_W, height: heroH, objectFit: 'cover' } })
+        ? h(Image, { src: jpg(hero.hero ?? hero.large), style: heroStyle })
         : null,
       h(
         Svg,
-        { width: PAGE_W, height: heroH, viewBox: `0 0 ${PAGE_W} ${heroH}`, style: { position: 'absolute', top: 0, left: 0 } },
+        { width: PAGE_W, height: imgH, viewBox: `0 0 ${PAGE_W} ${imgH}`, style: { position: 'absolute', top: 0, left: 0 } },
         h(
           Defs,
           null,
@@ -269,18 +280,19 @@ function coverPage(dossier: VehicleDossier, content: BrochureContent, assets: Ph
             { id: 'shade', x1: '0%', y1: '0%', x2: '0%', y2: '100%' },
             h(Stop, { offset: '0%', stopColor: '#000000', stopOpacity: 0.62 }),
             h(Stop, { offset: '24%', stopColor: '#000000', stopOpacity: 0 }),
-            h(Stop, { offset: '46%', stopColor: '#000000', stopOpacity: 0 }),
-            h(Stop, { offset: '70%', stopColor: '#000000', stopOpacity: 0.72 }),
-            h(Stop, { offset: '100%', stopColor: '#000000', stopOpacity: 0.97 }),
+            h(Stop, { offset: '55%', stopColor: '#000000', stopOpacity: 0 }),
+            h(Stop, { offset: '82%', stopColor: C.night, stopOpacity: 0.55 }),
+            h(Stop, { offset: '93%', stopColor: C.night, stopOpacity: 0.93 }),
+            h(Stop, { offset: '100%', stopColor: C.night, stopOpacity: 0.97 }),
           ),
         ),
-        h(Rect, { x: 0, y: 0, width: PAGE_W, height: heroH, fill: 'url(#shade)' }),
+        h(Rect, { x: 0, y: 0, width: PAGE_W, height: imgH, fill: 'url(#shade)' }),
       ),
       h(Image, { src: { data: logo(), format: 'png' }, style: { position: 'absolute', top: mm(9), left: mm(14), width: mm(29), height: mm(9) } }),
       h(
         Text,
         { style: { position: 'absolute', top: mm(10.5), right: mm(14), color: '#ffffff', fontSize: 8.5, letterSpacing: 1.1, textTransform: 'uppercase', opacity: 0.9 } },
-        agencyLabel(),
+        agencyLabel(agency),
       ),
       h(
         View,
@@ -322,10 +334,10 @@ function coverPage(dossier: VehicleDossier, content: BrochureContent, assets: Ph
   )
 }
 
-function highlightsPage(label: string, dossier: VehicleDossier, content: BrochureContent, assets: PhotoAsset[]) {
+function highlightsPage(frame: Frame, dossier: VehicleDossier, content: BrochureContent, assets: PhotoAsset[]) {
   const items = content.highlights.slice(0, 8)
   return innerPage(
-    label,
+    frame,
     sectionHead("L'essentiel", `Les points forts de ce ${dossier.model.length <= 3 ? dossier.model : dossier.model.charAt(0) + dossier.model.slice(1).toLowerCase()}`, content.intro),
     photoGrid(content.featured, assets, mm(62)),
     items.length
@@ -353,11 +365,11 @@ function highlightsPage(label: string, dossier: VehicleDossier, content: Brochur
   )
 }
 
-function galleryPage(label: string, kicker: string, title: string, lead: string, picks: PhotoPick[], assets: PhotoAsset[]) {
-  return innerPage(label, sectionHead(kicker, title, lead || undefined), photoGrid(picks, assets, mm(64)))
+function galleryPage(frame: Frame, kicker: string, title: string, lead: string, picks: PhotoPick[], assets: PhotoAsset[]) {
+  return innerPage(frame, sectionHead(kicker, title, lead || undefined), photoGrid(picks, assets, mm(64)))
 }
 
-function specsPage(label: string, dossier: VehicleDossier) {
+function specsPage(frame: Frame, dossier: VehicleDossier) {
   const columns = buildSpecs(dossier)
   const equipment = buildEquipment(dossier)
   const options = equipment.options.slice(0, 12)
@@ -402,7 +414,7 @@ function specsPage(label: string, dossier: VehicleDossier) {
   }
 
   return innerPage(
-    label,
+    frame,
     sectionHead('Caractéristiques', 'Fiche technique', "Données issues du certificat d'immatriculation et du dossier véhicule."),
     h(View, { style: { flexDirection: 'row', gap: mm(6) } }, ...columns.map((column) => specColumn(column.title, column.rows))),
     options.length
@@ -478,14 +490,14 @@ function specsPage(label: string, dossier: VehicleDossier) {
   )
 }
 
-function allPhotosPage(label: string, assets: PhotoAsset[]) {
+function allPhotosPage(frame: Frame, assets: PhotoAsset[]) {
   const shown = assets.slice(0, 54)
   const lead =
     shown.length < assets.length
       ? `${shown.length} des ${assets.length} photos du reportage · les autres sont disponibles sur demande.`
       : `${assets.length} photos prises à l'agence · photos en haute définition disponibles sur demande.`
   return innerPage(
-    label,
+    frame,
     sectionHead('Galerie complète', 'Toutes les photos', lead),
     h(
       View,
@@ -509,9 +521,10 @@ function allPhotosPage(label: string, assets: PhotoAsset[]) {
   )
 }
 
-function warrantyPage(label: string, dossier: VehicleDossier, content: BrochureContent) {
+function warrantyPage(frame: Frame, dossier: VehicleDossier, content: BrochureContent) {
+  const { agency } = frame
   const tier = WARRANTY_TIERS[content.warranty.tier]
-  const address = `${SITE.address.street}, ${SITE.address.postalCode} ${SITE.address.city}`
+  const address = `${agency.address.street}, ${agency.address.postalCode} ${agency.address.city}`
   const feesText = dossier.feesEur !== null ? formatEuro(dossier.feesEur) : null
   const legal = [
     dossier.priceEur !== null ? `Prix de ${formatEuro(dossier.priceEur)} hors carte grise.` : null,
@@ -519,7 +532,7 @@ function warrantyPage(label: string, dossier: VehicleDossier, content: BrochureC
     dossier.priceEur !== null && dossier.feesEur !== null ? `Prix total en cas d'acquisition : ${formatEuro(dossier.priceEur + dossier.feesEur)} hors carte grise.` : null,
     DISCLAIMER,
     'Conditions générales de prestations disponibles en agence et sur annonces.transakauto.com.',
-    `${SITE.legalName}, ${SITE.rcs}.`,
+    `${agency.legalName}, ${agency.rcs}.`,
   ]
     .filter(Boolean)
     .join(' ')
@@ -534,8 +547,8 @@ function warrantyPage(label: string, dossier: VehicleDossier, content: BrochureC
   ]
 
   return innerPage(
-    label,
-    sectionHead('Sérénité', 'Garantie & services', `Une garantie mécanique de ${INCLUDED_WARRANTY_MONTHS} mois est comprise dans les frais d'intermédiation. Vous pouvez l'étendre dès l'achat du véhicule.`),
+    frame,
+    sectionHead('Sérénité', 'Garantie & services', `Une garantie mécanique de ${INCLUDED_WARRANTY_MONTHS} mois est comprise dans les frais d'intermédiation. Vous pouvez la porter à 6, 12 ou 24 mois dès l'achat du véhicule.`),
     h(
       View,
       { style: { flexDirection: 'row', alignItems: 'center', gap: mm(4), backgroundColor: C.soft, borderRadius: mm(2.5), paddingVertical: mm(4.5), paddingHorizontal: mm(5), marginBottom: mm(6) } },
@@ -564,7 +577,7 @@ function warrantyPage(label: string, dossier: VehicleDossier, content: BrochureC
           },
           h(Text, { style: { fontSize: 8.5, textTransform: 'uppercase', letterSpacing: 1, color: C.muted, fontWeight: 600 } }, `${offer.months} mois`),
           h(Text, { style: { fontSize: 21, fontWeight: 800, color: C.pink, marginVertical: mm(1.5) } }, formatEuro(offer.price)),
-          h(Text, { style: { fontSize: 7.6, color: C.muted } }, `soit ${offer.months + INCLUDED_WARRANTY_MONTHS} mois de garantie au total`),
+          h(Text, { style: { fontSize: 7.6, color: C.muted } }, 'durée totale de garantie'),
         ),
       ),
     ),
@@ -576,11 +589,11 @@ function warrantyPage(label: string, dossier: VehicleDossier, content: BrochureC
         View,
         { style: { flex: 1.3, backgroundColor: C.night, borderRadius: mm(2.5), paddingVertical: mm(6), paddingHorizontal: mm(7) } },
         h(Image, { src: { data: logo(), format: 'png' }, style: { width: mm(19.5), height: mm(6), marginBottom: mm(2.5) } }),
-        h(Text, { style: { color: C.pink, fontSize: 14.5, fontWeight: 800 } }, SITE.phoneDisplay),
-        h(Text, { style: { color: '#d9dbe2', fontSize: 8.8, marginTop: mm(1) } }, SITE.email),
-        h(Text, { style: { color: '#d9dbe2', fontSize: 8.8, marginTop: mm(1), lineHeight: 1.35 } }, h(Text, { style: { color: '#ffffff', fontWeight: 600 } }, SITE.name), ` · ${address}`),
+        h(Text, { style: { color: C.pink, fontSize: 14.5, fontWeight: 800 } }, agency.phoneDisplay),
+        h(Text, { style: { color: '#d9dbe2', fontSize: 8.8, marginTop: mm(1) } }, agency.email),
+        h(Text, { style: { color: '#d9dbe2', fontSize: 8.8, marginTop: mm(1), lineHeight: 1.35 } }, h(Text, { style: { color: '#ffffff', fontWeight: 600 } }, agency.name), ` · ${address}`),
         dossier.commercial ? h(Text, { style: { color: '#d9dbe2', fontSize: 8.8, marginTop: mm(1) } }, 'Votre conseiller : ', h(Text, { style: { color: '#ffffff', fontWeight: 600 } }, dossier.commercial)) : null,
-        h(Text, { style: { color: '#b9bcc6', fontSize: 8, marginTop: mm(3), lineHeight: 1.35 } }, `Véhicule en dépôt-vente, visible uniquement sur rendez-vous à l'agence. ${SITE.hours}.`),
+        h(Text, { style: { color: '#b9bcc6', fontSize: 8, marginTop: mm(3), lineHeight: 1.35 } }, `Véhicule en dépôt-vente, visible uniquement sur rendez-vous à l'agence. ${agency.hours}.`),
       ),
       h(
         View,
@@ -602,32 +615,36 @@ function warrantyPage(label: string, dossier: VehicleDossier, content: BrochureC
 /* --------------------------------------------------------------- document */
 
 /** « Agence de Montluçon », « Agence d'Aubière » : élision devant une voyelle. */
-function agencyLabel(): string {
-  const city = SITE.address.city
+function agencyLabel(agency: Agency): string {
+  const city = agency.address.city
   return /^[aeiouyàâäéèêëîïôöùûüh]/i.test(city) ? `Agence d'${city}` : `Agence de ${city}`
 }
 
 export async function renderBrochurePdf(dossier: VehicleDossier, content: BrochureContent, assets: PhotoAsset[]): Promise<Buffer> {
   await loadRenderer()
   ensureFonts()
-  const label = `${content.headline} · Réf. ${dossier.ref}`
+  const agency = agencyForShop(dossier.shop)
+  if (!agency) {
+    throw new PlaquetteError(`Boutique mytransak inconnue (${dossier.shop}) : ajoutez cette agence dans src/lib/plaquette/agencies.ts.`, 'input')
+  }
+  const frame: Frame = { label: `${content.headline} · Réf. ${dossier.ref}`, agency }
 
   const document = h(
     Document,
     {
-      title: `${content.headline} – ${SITE.name}`,
-      author: SITE.name,
+      title: `${content.headline} – ${agency.name}`,
+      author: agency.name,
       subject: `Plaquette de présentation · Réf. ${dossier.ref}`,
-      creator: `${SITE.name} · plaquette`,
+      creator: `${agency.name} · plaquette`,
       language: 'fr',
     },
-    coverPage(dossier, content, assets),
-    highlightsPage(label, dossier, content, assets),
-    galleryPage(label, 'Galerie', 'Extérieur', content.exteriorLead, content.exterior, assets),
-    galleryPage(label, 'Galerie', 'Intérieur & habitabilité', content.interiorLead, content.interior, assets),
-    specsPage(label, dossier),
-    allPhotosPage(label, assets),
-    warrantyPage(label, dossier, content),
+    coverPage(agency, dossier, content, assets),
+    highlightsPage(frame, dossier, content, assets),
+    galleryPage(frame, 'Galerie', 'Extérieur', content.exteriorLead, content.exterior, assets),
+    galleryPage(frame, 'Galerie', 'Intérieur & habitabilité', content.interiorLead, content.interior, assets),
+    specsPage(frame, dossier),
+    allPhotosPage(frame, assets),
+    warrantyPage(frame, dossier, content),
   )
 
   const buffer = await renderToBuffer(document as React.ReactElement<React.ComponentProps<typeof Document>>)

@@ -53,6 +53,9 @@ export interface PhotoAsset {
   thumb: Buffer
   /** ~1 500 px de large, seulement pour la première photo (couverture pleine page). */
   hero?: Buffer
+  /** Dimensions de `large` : la couverture adapte sa hauteur pour ne jamais recadrer en largeur. */
+  width?: number
+  height?: number
 }
 
 export type PlaquetteErrorKind = 'config' | 'auth' | 'input' | 'notfound' | 'upstream'

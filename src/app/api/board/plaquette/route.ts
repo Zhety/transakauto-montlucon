@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getCurrentMember } from '@/lib/board-auth'
+import { requireAgency } from '@/lib/plaquette/agencies'
 import { buildPlaquette } from '@/lib/plaquette/build'
 import { parseMandateUrl } from '@/lib/plaquette/mytransak-scrape'
 import { listPlaquetteRequests } from '@/lib/plaquette/queue-server'
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
   const { url, mode } = parsed.data
 
   try {
-    parseMandateUrl(url)
+    requireAgency(parseMandateUrl(url).shop)
 
     if (mode === 'agent') {
       if (!canWriteLeads) throw new PlaquetteError('Supabase non configuré', 'config')

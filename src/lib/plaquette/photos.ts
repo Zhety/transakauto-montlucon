@@ -32,12 +32,12 @@ export async function loadPhotoAssets(
   return mapLimit(photos, 6, async (photo) => {
     const original = await fetchBinary(photo.fullUrl)
     const base = sharp(original).rotate()
-    const [large, thumb] = await Promise.all([
+    const [largeOut, thumb] = await Promise.all([
       base
         .clone()
         .resize({ width: LARGE_WIDTH, withoutEnlargement: true })
         .jpeg({ quality: 76, mozjpeg: true })
-        .toBuffer(),
+        .toBuffer({ resolveWithObject: true }),
       base
         .clone()
         .resize({ width: THUMB_WIDTH, withoutEnlargement: true })
@@ -49,6 +49,6 @@ export async function loadPhotoAssets(
       photo === photos[0]
         ? await base.clone().resize({ width: HERO_WIDTH, withoutEnlargement: true }).jpeg({ quality: 80, mozjpeg: true }).toBuffer()
         : undefined
-    return { id: photo.id, position: photo.position, large, thumb, hero }
+    return { id: photo.id, position: photo.position, large: largeOut.data, thumb, hero, width: largeOut.info.width, height: largeOut.info.height }
   })
 }
