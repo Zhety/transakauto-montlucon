@@ -83,10 +83,18 @@ async function api(action: string, init: RequestInit & { id?: string } = {}): Pr
       'x-plaquette-worker-version': VERSION,
       ...(init.headers ?? {}),
     },
+    // Pas de suivi des redirections : un renvoi vers la page de connexion doit
+    // ressortir comme une erreur, pas comme une file vide.
+    redirect: 'manual',
     signal: AbortSignal.timeout(60_000),
   })
   const data = (await response.json().catch(() => ({}))) as Record<string, unknown>
-  if (!response.ok) throw new Error(`${action} → ${response.status} ${JSON.stringify(data).slice(0, 200)}`)
+  if (!response.ok || data.ok !== true) {
+    const detail = Object.keys(data).length
+      ? JSON.stringify(data).slice(0, 200)
+      : 'réponse inattendue (le site a renvoyé une page, pas du JSON)'
+    throw new Error(`${action} → ${response.status} ${detail}`)
+  }
   return data
 }
 
