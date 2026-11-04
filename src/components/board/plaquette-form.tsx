@@ -35,8 +35,8 @@ function refFromUrl(url: string): string {
   return match ? `mandat ${match[1]}` : url
 }
 
-/** « 300 », « 300 € », « 1 200 » → 300 / 300 / 1200 ; vide ou 0 → null (pas de ligne sur la plaquette). */
-function parseRoadFees(value: string): number | null {
+/** « 300 », « 300 € », « 1 200 » → 300 / 300 / 1200 ; vide ou 0 → null (montant de la fiche mytransak). */
+function parseFees(value: string): number | null {
   const amount = Number(value.replace(/[^\d]/g, ''))
   return value.trim() && Number.isFinite(amount) && amount > 0 ? Math.round(amount) : null
 }
@@ -59,7 +59,7 @@ export function PlaquetteForm({
   mytransakConfigured: boolean
 }) {
   const [url, setUrl] = useState('')
-  const [roadFees, setRoadFees] = useState('')
+  const [fees, setFees] = useState('')
   const [queue, setQueue] = useState<PlaquetteQueueState>(initialQueue)
   const [submitting, setSubmitting] = useState(false)
   const [quickRunning, setQuickRunning] = useState(false)
@@ -104,7 +104,7 @@ export function PlaquetteForm({
     const response = await fetch('/api/board/plaquette', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: url.trim(), mode, roadFeesEur: parseRoadFees(roadFees) }),
+      body: JSON.stringify({ url: url.trim(), mode, feesEur: parseFees(fees) }),
     })
     if (!response.ok) {
       const data = (await response.json().catch(() => ({}))) as { errors?: string[] }
@@ -122,7 +122,7 @@ export function PlaquetteForm({
       await request('agent')
       setNotice('Demande déposée. Le Mac de l’agence la traite dans les minutes qui viennent ; la plaquette apparaîtra ci-dessous.')
       setUrl('')
-      setRoadFees('')
+      setFees('')
       await refresh()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Une erreur est survenue')
@@ -221,25 +221,25 @@ export function PlaquetteForm({
                 disabled={submitting || quickRunning}
               />
             </div>
-            <div className="w-48">
-              <label className="block text-sm font-medium text-graphite" htmlFor="road-fees">
-                Mise à la route (€)
+            <div className="w-56">
+              <label className="block text-sm font-medium text-graphite" htmlFor="fees">
+                Frais d’intermédiation (€)
               </label>
               <input
-                id="road-fees"
+                id="fees"
                 type="text"
                 inputMode="numeric"
-                placeholder="facultatif"
+                placeholder="montant de la fiche"
                 className={`mt-1.5 ${field}`}
-                value={roadFees}
-                onChange={(event) => setRoadFees(event.target.value)}
+                value={fees}
+                onChange={(event) => setFees(event.target.value)}
                 disabled={submitting || quickRunning}
-                title="Frais de mise à la route : ligne dédiée sur la plaquette, ajoutés au prix total avec les frais d'intermédiation"
+                title="Remplace le montant des frais d'intermédiation de la fiche mytransak sur la plaquette"
               />
             </div>
           </div>
           <p className="mt-1.5 text-xs text-muted">
-            Les frais de mise à la route, s’ils sont saisis, apparaissent sur une ligne dédiée et s’ajoutent au prix total de la plaquette.
+            Le montant saisi remplace les frais d’intermédiation de la fiche mytransak sur la plaquette ; vide, la plaquette reprend ceux de la fiche.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -306,7 +306,7 @@ function RequestRow({ item }: { item: PlaquetteRequest }) {
         <p className="text-xs text-muted">
           {formatDate(item.created_at)}
           {item.requested_by_name ? ` · ${item.requested_by_name}` : ''}
-          {item.road_fees_eur ? ` · mise à la route ${item.road_fees_eur} €` : ''}
+          {item.road_fees_eur ? ` · frais d’intermédiation ${item.road_fees_eur} €` : ''}
           {item.status === 'prete' && item.agent !== 'claude-code' ? ' · version générique' : ''}
         </p>
         {item.status === 'erreur' && item.error && <p className="mt-1 text-xs text-red-700">{item.error}</p>}

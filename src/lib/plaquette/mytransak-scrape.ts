@@ -83,7 +83,6 @@ function parseDetails(html: string, shop: string, id: string, sourceUrl: string)
     commercial,
     priceEur: parseEuro(about['Prix de vente']),
     feesEur: parseEuro(about["Frais d'intermédiation"]),
-    roadFeesEur: null,
     info,
     stats,
     registration,

@@ -26,9 +26,8 @@ export interface VehicleDossier {
   agency: string
   commercial: string | null
   priceEur: number | null
+  /** Frais d'intermédiation : ceux de la fiche, ou le montant saisi avec la demande qui les remplace. */
   feesEur: number | null
-  /** Frais de mise à la route saisis avec la demande (facultatif) : ligne dédiée, ajoutés au prix total. */
-  roadFeesEur: number | null
   /** « Informations du véhicule » : Version, Finition, Couleur, Puissance DIN… */
   info: Record<string, string>
   /** Bandeau de stats : Mise en service, Carburant, Kilométrage, Boîte. */

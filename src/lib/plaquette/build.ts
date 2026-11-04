@@ -33,8 +33,8 @@ export interface BuildOptions {
   content?: unknown
   /** Fiche et photos déjà chargées (évite une seconde lecture). */
   loaded?: LoadedDossier
-  /** Frais de mise à la route saisis avec la demande : ligne dédiée et prix total sur la plaquette. */
-  roadFeesEur?: number | null
+  /** Frais d'intermédiation saisis avec la demande : remplacent ceux de la fiche mytransak. */
+  feesEur?: number | null
   log?: (step: string) => void
 }
 
@@ -79,7 +79,7 @@ export async function buildPlaquette(input: string, options: BuildOptions = {}):
   const log = options.log ?? (() => {})
   const loaded = options.loaded ?? (await loadDossier(input, log))
   const { assets } = loaded
-  const dossier: VehicleDossier = { ...loaded.dossier, roadFeesEur: options.roadFeesEur ?? loaded.dossier.roadFeesEur ?? null }
+  const dossier: VehicleDossier = { ...loaded.dossier, feesEur: options.feesEur ?? loaded.dossier.feesEur }
 
   let content = fallbackContent(dossier, assets)
   let agent: AgentKind | null = null

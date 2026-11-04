@@ -14,7 +14,7 @@ export interface PlaquetteRequest {
   created_at: string
   status: PlaquetteStatus
   url: string
-  /** Frais de mise à la route saisis avec la demande, en euros (null = aucun). */
+  /** Frais d'intermédiation saisis avec la demande, en euros (null = montant de la fiche). Nom de colonne historique. */
   road_fees_eur: number | null
   ref: string | null
   title: string | null

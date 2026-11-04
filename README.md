@@ -327,10 +327,9 @@ Le bouton « Version rapide » de l'onglet reste produit par le site lui-même, 
 dans l'ordre, sans légendes. Le dossier `plaquettes/` est ignoré par Git. Si le Mac est éteint,
 les demandes attendent ; rien n'est perdu.
 
-Un montant de **frais de mise à la route** peut être saisi à côté du lien (facultatif) : il apparaît
-sur une ligne dédiée de la couverture et des mentions, et s'ajoute au prix total avec les frais
-d'intermédiation. Colonne `road_fees_eur` de la table `plaquettes`
-(`supabase/migrations/009_plaquettes_mise_a_la_route.sql`). En ligne de commande : `--mise-a-la-route 300`.
+Un montant de **frais d'intermédiation** peut être saisi à côté du lien (facultatif) : il remplace,
+sur la couverture et dans les mentions, celui de la fiche mytransak. Colonne `road_fees_eur` de la
+table `plaquettes` (`supabase/migrations/009_plaquettes_mise_a_la_route.sql`). En ligne de commande : `--frais 300`.
 
 Ce que fait la route `POST /api/board/plaquette` (`src/lib/plaquette/`) :
 
