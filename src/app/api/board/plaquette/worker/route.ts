@@ -30,10 +30,16 @@ function denied() {
   return NextResponse.json({ ok: false, errors: ['Jeton du service invalide'] }, { status: 401 })
 }
 
-async function ping(version: string | null) {
-  await createAdminSupabase()
-    .from('plaquette_worker')
-    .upsert({ id: 'mac', seen_at: new Date().toISOString(), version })
+/** Message lisible quand la base n'est pas à jour : le service le répète dans son journal. */
+function dbFailure(message: string) {
+  const missing = /relation .*plaquette|schema cache/i.test(message)
+  return NextResponse.json(
+    {
+      ok: false,
+      errors: [missing ? 'Base non à jour : exécutez supabase/migrations/008_plaquettes.sql dans Supabase → SQL Editor' : message],
+    },
+    { status: 500 },
+  )
 }
 
 export async function GET(request: Request) {
@@ -42,29 +48,35 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url)
   const action = url.searchParams.get('action')
-  await ping(request.headers.get('x-plaquette-worker-version'))
+  const admin = createAdminSupabase()
+
+  const { error: pingError } = await admin
+    .from('plaquette_worker')
+    .upsert({ id: 'mac', seen_at: new Date().toISOString(), version: request.headers.get('x-plaquette-worker-version') })
+  if (pingError) return dbFailure(pingError.message)
 
   if (action === 'ping') return NextResponse.json({ ok: true })
 
   if (action === 'claim') {
-    const admin = createAdminSupabase()
-    const { data: next } = await admin
+    const { data: next, error: nextError } = await admin
       .from('plaquettes')
       .select('id, url')
       .eq('status', 'en_attente')
       .order('created_at', { ascending: true })
       .limit(1)
       .maybeSingle()
+    if (nextError) return dbFailure(nextError.message)
     if (!next) return NextResponse.json({ ok: true, request: null })
 
     // Prise exclusive : seul le passage en_attente → en_cours « gagne ».
-    const { data: claimed } = await admin
+    const { data: claimed, error: claimError } = await admin
       .from('plaquettes')
       .update({ status: 'en_cours', started_at: new Date().toISOString() })
       .eq('id', next.id)
       .eq('status', 'en_attente')
       .select('id, url')
       .maybeSingle()
+    if (claimError) return dbFailure(claimError.message)
     return NextResponse.json({ ok: true, request: claimed ?? null })
   }
 
