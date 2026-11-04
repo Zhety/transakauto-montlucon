@@ -280,7 +280,7 @@ function coverPage(dossier: VehicleDossier, content: BrochureContent, assets: Ph
       h(
         Text,
         { style: { position: 'absolute', top: mm(10.5), right: mm(14), color: '#ffffff', fontSize: 8.5, letterSpacing: 1.1, textTransform: 'uppercase', opacity: 0.9 } },
-        `Agence de ${SITE.address.city}`,
+        agencyLabel(),
       ),
       h(
         View,
@@ -600,6 +600,12 @@ function warrantyPage(label: string, dossier: VehicleDossier, content: BrochureC
 }
 
 /* --------------------------------------------------------------- document */
+
+/** « Agence de Montluçon », « Agence d'Aubière » : élision devant une voyelle. */
+function agencyLabel(): string {
+  const city = SITE.address.city
+  return /^[aeiouyàâäéèêëîïôöùûüh]/i.test(city) ? `Agence d'${city}` : `Agence de ${city}`
+}
 
 export async function renderBrochurePdf(dossier: VehicleDossier, content: BrochureContent, assets: PhotoAsset[]): Promise<Buffer> {
   await loadRenderer()
