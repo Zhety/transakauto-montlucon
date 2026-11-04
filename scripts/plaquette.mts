@@ -5,7 +5,7 @@
  *   npm run plaquette -- <lien> --preparer               fiche, photos et planches-contact dans plaquettes/<ref>/
  *   npm run plaquette -- <lien> --contenu <contenu.json>  PDF à partir d'un contenu rédigé (agent local Claude Code)
  *
- * Options : [fichier.pdf] [--sans-agent] [--dossier <répertoire>]
+ * Options : [fichier.pdf] [--sans-agent] [--dossier <répertoire>] [--mise-a-la-route <montant>]  (frais ajoutés au prix total)
  * Lit MYTRANSAK_EMAIL / MYTRANSAK_PASSWORD (/ ANTHROPIC_API_KEY) dans .env.local.
  */
 import fs from 'node:fs/promises'
@@ -19,13 +19,13 @@ const flags = new Map<string, string | true>()
 for (let i = 0; i < args.length; i++) {
   const arg = args[i]
   if (!arg.startsWith('--')) positional.push(arg)
-  else if (['--contenu', '--dossier'].includes(arg)) flags.set(arg, args[++i] ?? '')
+  else if (['--contenu', '--dossier', '--mise-a-la-route'].includes(arg)) flags.set(arg, args[++i] ?? '')
   else flags.set(arg, true)
 }
 
 const [input, output] = positional
 if (!input) {
-  console.error('Usage : npm run plaquette -- <lien mytransak> [fichier.pdf] [--preparer | --contenu <json>] [--sans-agent] [--dossier <répertoire>]')
+  console.error('Usage : npm run plaquette -- <lien mytransak> [fichier.pdf] [--preparer | --contenu <json>] [--sans-agent] [--dossier <répertoire>] [--mise-a-la-route <montant>]')
   process.exit(1)
 }
 
@@ -54,7 +54,8 @@ try {
     content = JSON.parse(await fs.readFile(contentPath, 'utf8'))
   }
 
-  const result = await buildPlaquette(input, { loaded, content, skipAgent: Boolean(flags.get('--sans-agent')), log })
+  const roadFeesEur = flags.has('--mise-a-la-route') ? Number(String(flags.get('--mise-a-la-route')).replace(/\D/g, '')) || null : null
+  const result = await buildPlaquette(input, { loaded, content, skipAgent: Boolean(flags.get('--sans-agent')), log, roadFeesEur })
   const file = output ?? (content !== undefined ? path.join(workDir, filenameFor(dossier)) : result.filename)
   await fs.mkdir(path.dirname(file), { recursive: true })
   await fs.writeFile(file, result.pdf)

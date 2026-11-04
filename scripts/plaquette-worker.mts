@@ -7,7 +7,7 @@
  * (abonnement, pas de clé API), met en page le PDF et le dépose sur le site.
  *
  *   npm run plaquette:worker                  service permanent (installé par scripts/install-worker.sh)
- *   npm run plaquette:worker -- --une-fois <lien mytransak>   un seul traitement, PDF écrit en local, sans le site
+ *   npm run plaquette:worker -- --une-fois <lien mytransak> [--mise-a-la-route 300]   un seul traitement, PDF écrit en local, sans le site
  *
  * .env.local : MYTRANSAK_EMAIL, MYTRANSAK_PASSWORD, PLAQUETTE_WORKER_TOKEN,
  * PLAQUETTE_SITE_URL (défaut : https://leads.transakautomontlucon.com),
@@ -39,7 +39,7 @@ interface Produced {
 }
 
 /** Fiche → dossier de travail → Claude Code → PDF. Repli générique si Claude Code échoue. */
-async function produce(url: string, requestId: string): Promise<Produced> {
+async function produce(url: string, requestId: string, roadFeesEur: number | null = null): Promise<Produced> {
   const loaded: LoadedDossier = await loadDossier(url, log)
   const { dossier, assets } = loaded
   const dir = path.join(WORK_ROOT, `${slug(dossier.ref)}-${requestId.slice(0, 8)}`)
@@ -60,7 +60,7 @@ async function produce(url: string, requestId: string): Promise<Produced> {
     log(`Claude Code indisponible, version générique : ${note}`)
   }
 
-  const result = await buildPlaquette(url, { loaded, content, skipAgent: true, log })
+  const result = await buildPlaquette(url, { loaded, content, skipAgent: true, log, roadFeesEur })
   await fs.writeFile(path.join(dir, result.filename), result.pdf)
   return {
     pdf: result.pdf,
@@ -98,10 +98,17 @@ async function api(action: string, init: RequestInit & { id?: string } = {}): Pr
   return data
 }
 
-async function handle(request: { id: string; url: string }) {
-  log(`Demande ${request.id.slice(0, 8)} : ${request.url}`)
+interface QueuedRequest {
+  id: string
+  url: string
+  road_fees_eur?: number | null
+}
+
+async function handle(request: QueuedRequest) {
+  const roadFeesEur = request.road_fees_eur ?? null
+  log(`Demande ${request.id.slice(0, 8)} : ${request.url}${roadFeesEur !== null ? ` · mise à la route ${roadFeesEur} €` : ''}`)
   try {
-    const produced = await produce(request.url, request.id)
+    const produced = await produce(request.url, request.id, roadFeesEur)
     await api('done', {
       id: request.id,
       method: 'POST',
@@ -138,7 +145,7 @@ async function loop() {
   for (;;) {
     try {
       const data = await api('claim')
-      const request = data.request as { id: string; url: string } | null
+      const request = data.request as QueuedRequest | null
       if (failedTicks) log('Site de nouveau joignable')
       failedTicks = 0
       if (request) {
@@ -160,11 +167,13 @@ const once = args.indexOf('--une-fois')
 if (once >= 0) {
   const url = args[once + 1]
   if (!url) {
-    console.error('Usage : npm run plaquette:worker -- --une-fois <lien mytransak>')
+    console.error('Usage : npm run plaquette:worker -- --une-fois <lien mytransak> [--mise-a-la-route <montant>]')
     process.exit(1)
   }
   try {
-    const produced = await produce(url, `local-${Date.now()}`)
+    const feeIndex = args.indexOf('--mise-a-la-route')
+    const roadFeesEur = feeIndex >= 0 ? Number(String(args[feeIndex + 1] ?? '').replace(/\D/g, '')) || null : null
+    const produced = await produce(url, `local-${Date.now()}`, roadFeesEur)
     log(`PDF : plaquettes/… /${produced.filename} (${produced.agent}${produced.note ? ` — ${produced.note}` : ''})`)
   } catch (error) {
     console.error(error instanceof PlaquetteError ? `${error.kind} : ${error.message}` : error)

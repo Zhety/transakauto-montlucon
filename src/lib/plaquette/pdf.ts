@@ -255,12 +255,19 @@ function coverPage(agency: Agency, dossier: VehicleDossier, content: BrochureCon
       h(Text, { style: { fontSize: 8.8, color: '#ffffff', fontWeight: last ? 700 : 400 } }, value),
     )
 
-  const sideRows = price !== null
-    ? [
-        priceRow('Prix du véhicule', formatEuro(price), fees === null),
-        ...(fees !== null ? [priceRow("Frais d'intermédiation", formatEuro(fees)), priceRow('Prix total (hors carte grise)', formatEuro(price + fees), true)] : []),
-      ]
-    : [priceRow('Prix', 'sur demande', true)]
+  const roadFees = dossier.roadFeesEur
+  const rows: [string, string][] =
+    price !== null
+      ? [
+          ['Prix du véhicule', formatEuro(price)],
+          ...(roadFees !== null ? [['Frais de mise à la route', formatEuro(roadFees)] as [string, string]] : []),
+          ...(fees !== null ? [["Frais d'intermédiation", formatEuro(fees)] as [string, string]] : []),
+          ...(fees !== null || roadFees !== null
+            ? [['Prix total (hors carte grise)', formatEuro(price + (fees ?? 0) + (roadFees ?? 0))] as [string, string]]
+            : []),
+        ]
+      : [['Prix', 'sur demande']]
+  const sideRows = rows.map(([label, value], index) => priceRow(label, value, index === rows.length - 1))
 
   return h(
     Page,
@@ -530,7 +537,10 @@ function warrantyPage(frame: Frame, dossier: VehicleDossier, content: BrochureCo
   const legal = [
     dossier.priceEur !== null ? `Prix de ${formatEuro(dossier.priceEur)} hors carte grise.` : null,
     feesText ? `Frais d'intermédiation à la charge de l'acheteur : ${feesText} (${FEES_DETAIL}).` : null,
-    dossier.priceEur !== null && dossier.feesEur !== null ? `Prix total en cas d'acquisition : ${formatEuro(dossier.priceEur + dossier.feesEur)} hors carte grise.` : null,
+    dossier.roadFeesEur !== null ? `Frais de mise à la route : ${formatEuro(dossier.roadFeesEur)}.` : null,
+    dossier.priceEur !== null && (dossier.feesEur !== null || dossier.roadFeesEur !== null)
+      ? `Prix total en cas d'acquisition : ${formatEuro(dossier.priceEur + (dossier.feesEur ?? 0) + (dossier.roadFeesEur ?? 0))} hors carte grise.`
+      : null,
     DISCLAIMER,
     'Conditions générales de prestations disponibles en agence et sur annonces.transakauto.com.',
     `${agency.legalName}, ${agency.rcs}.`,

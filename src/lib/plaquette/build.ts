@@ -33,6 +33,8 @@ export interface BuildOptions {
   content?: unknown
   /** Fiche et photos déjà chargées (évite une seconde lecture). */
   loaded?: LoadedDossier
+  /** Frais de mise à la route saisis avec la demande : ligne dédiée et prix total sur la plaquette. */
+  roadFeesEur?: number | null
   log?: (step: string) => void
 }
 
@@ -75,7 +77,9 @@ export function parseLocalContent(content: unknown): AgentOutput {
 /** Lien de fiche mandat → PDF de la plaquette (format « magazine »). */
 export async function buildPlaquette(input: string, options: BuildOptions = {}): Promise<BuildResult> {
   const log = options.log ?? (() => {})
-  const { dossier, assets } = options.loaded ?? (await loadDossier(input, log))
+  const loaded = options.loaded ?? (await loadDossier(input, log))
+  const { assets } = loaded
+  const dossier: VehicleDossier = { ...loaded.dossier, roadFeesEur: options.roadFeesEur ?? loaded.dossier.roadFeesEur ?? null }
 
   let content = fallbackContent(dossier, assets)
   let agent: AgentKind | null = null

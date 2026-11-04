@@ -35,6 +35,12 @@ function refFromUrl(url: string): string {
   return match ? `mandat ${match[1]}` : url
 }
 
+/** « 300 », « 300 € », « 1 200 » → 300 / 300 / 1200 ; vide ou 0 → null (pas de ligne sur la plaquette). */
+function parseRoadFees(value: string): number | null {
+  const amount = Number(value.replace(/[^\d]/g, ''))
+  return value.trim() && Number.isFinite(amount) && amount > 0 ? Math.round(amount) : null
+}
+
 /**
  * Deux façons d'obtenir une plaquette : la demande « rédigée », déposée dans la
  * file d'attente et traitée par Claude Code sur le Mac de l'agence (photos
@@ -53,6 +59,7 @@ export function PlaquetteForm({
   mytransakConfigured: boolean
 }) {
   const [url, setUrl] = useState('')
+  const [roadFees, setRoadFees] = useState('')
   const [queue, setQueue] = useState<PlaquetteQueueState>(initialQueue)
   const [submitting, setSubmitting] = useState(false)
   const [quickRunning, setQuickRunning] = useState(false)
@@ -97,7 +104,7 @@ export function PlaquetteForm({
     const response = await fetch('/api/board/plaquette', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: url.trim(), mode }),
+      body: JSON.stringify({ url: url.trim(), mode, roadFeesEur: parseRoadFees(roadFees) }),
     })
     if (!response.ok) {
       const data = (await response.json().catch(() => ({}))) as { errors?: string[] }
@@ -115,6 +122,7 @@ export function PlaquetteForm({
       await request('agent')
       setNotice('Demande déposée. Le Mac de l’agence la traite dans les minutes qui viennent ; la plaquette apparaîtra ci-dessous.')
       setUrl('')
+      setRoadFees('')
       await refresh()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Une erreur est survenue')
@@ -197,19 +205,42 @@ export function PlaquetteForm({
             </p>
           )}
 
-          <label className="mt-5 block text-sm font-medium text-graphite" htmlFor="mandate-url">
-            Lien de la fiche mandat
-          </label>
-          <input
-            id="mandate-url"
-            type="url"
-            required
-            placeholder="https://mytransak.transakauto.com/shop-montlucon-201/mandat/12345/details"
-            className={`mt-1.5 ${field}`}
-            value={url}
-            onChange={(event) => setUrl(event.target.value)}
-            disabled={submitting || quickRunning}
-          />
+          <div className="mt-5 flex flex-wrap items-start gap-3">
+            <div className="min-w-[16rem] flex-1">
+              <label className="block text-sm font-medium text-graphite" htmlFor="mandate-url">
+                Lien de la fiche mandat
+              </label>
+              <input
+                id="mandate-url"
+                type="url"
+                required
+                placeholder="https://mytransak.transakauto.com/shop-montlucon-201/mandat/12345/details"
+                className={`mt-1.5 ${field}`}
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                disabled={submitting || quickRunning}
+              />
+            </div>
+            <div className="w-48">
+              <label className="block text-sm font-medium text-graphite" htmlFor="road-fees">
+                Mise à la route (€)
+              </label>
+              <input
+                id="road-fees"
+                type="text"
+                inputMode="numeric"
+                placeholder="facultatif"
+                className={`mt-1.5 ${field}`}
+                value={roadFees}
+                onChange={(event) => setRoadFees(event.target.value)}
+                disabled={submitting || quickRunning}
+                title="Frais de mise à la route : ligne dédiée sur la plaquette, ajoutés au prix total avec les frais d'intermédiation"
+              />
+            </div>
+          </div>
+          <p className="mt-1.5 text-xs text-muted">
+            Les frais de mise à la route, s’ils sont saisis, apparaissent sur une ligne dédiée et s’ajoutent au prix total de la plaquette.
+          </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
@@ -275,6 +306,7 @@ function RequestRow({ item }: { item: PlaquetteRequest }) {
         <p className="text-xs text-muted">
           {formatDate(item.created_at)}
           {item.requested_by_name ? ` · ${item.requested_by_name}` : ''}
+          {item.road_fees_eur ? ` · mise à la route ${item.road_fees_eur} €` : ''}
           {item.status === 'prete' && item.agent !== 'claude-code' ? ' · version générique' : ''}
         </p>
         {item.status === 'erreur' && item.error && <p className="mt-1 text-xs text-red-700">{item.error}</p>}

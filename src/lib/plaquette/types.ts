@@ -27,6 +27,8 @@ export interface VehicleDossier {
   commercial: string | null
   priceEur: number | null
   feesEur: number | null
+  /** Frais de mise à la route saisis avec la demande (facultatif) : ligne dédiée, ajoutés au prix total. */
+  roadFeesEur: number | null
   /** « Informations du véhicule » : Version, Finition, Couleur, Puissance DIN… */
   info: Record<string, string>
   /** Bandeau de stats : Mise en service, Carburant, Kilométrage, Boîte. */

@@ -21,6 +21,8 @@ const schema = z.object({
   url: z.string().trim().min(1, 'Lien manquant'),
   /** 'agent' : demande traitée par le Mac de l'agence (Claude Code) ; 'rapide' : PDF générique immédiat. */
   mode: z.enum(['agent', 'rapide']).default('agent'),
+  /** Frais de mise à la route saisis à côté du lien : ligne dédiée et prix total sur la plaquette. */
+  roadFeesEur: z.number().int().min(0).max(100_000).nullable().optional(),
 })
 
 const STATUS: Record<PlaquetteError['kind'], number> = {
@@ -58,6 +60,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, errors: parsed.error.issues.map((issue) => issue.message) }, { status: 422 })
   }
   const { url, mode } = parsed.data
+  const roadFees = parsed.data.roadFeesEur ?? null
 
   try {
     requireAgency(parseMandateUrl(url).shop)
@@ -66,20 +69,21 @@ export async function POST(request: Request) {
       if (!canWriteLeads) throw new PlaquetteError('Supabase non configuré', 'config')
       const { data, error } = await createAdminSupabase()
         .from('plaquettes')
-        .insert({ url, requested_by: current.member.id, status: 'en_attente' })
+        .insert({ url, requested_by: current.member.id, status: 'en_attente', ...(roadFees !== null ? { road_fees_eur: roadFees } : {}) })
         .select('id')
         .single()
       if (error) {
+        const column = /road_fees_eur/i.test(error.message)
         const missing = /relation .*plaquettes|schema cache/i.test(error.message)
         throw new PlaquetteError(
-          missing ? 'La file d’attente n’existe pas encore : exécutez la migration 008 dans Supabase.' : error.message,
+          column ? 'La colonne des frais de mise à la route manque : exécutez supabase/migrations/009_plaquettes_mise_a_la_route.sql dans Supabase → SQL Editor.' : missing ? 'La file d’attente n’existe pas encore : exécutez la migration 008 dans Supabase.' : error.message,
           'upstream',
         )
       }
       return NextResponse.json({ ok: true, id: data.id })
     }
 
-    const result = await buildPlaquette(url, { skipAgent: true })
+    const result = await buildPlaquette(url, { skipAgent: true, roadFeesEur: roadFees })
     return new Response(new Uint8Array(result.pdf), {
       headers: {
         'Content-Type': 'application/pdf',

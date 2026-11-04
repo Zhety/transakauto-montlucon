@@ -74,10 +74,13 @@ export async function GET(request: Request) {
       .update({ status: 'en_cours', started_at: new Date().toISOString() })
       .eq('id', next.id)
       .eq('status', 'en_attente')
-      .select('id, url')
+      .select('*')
       .maybeSingle()
     if (claimError) return dbFailure(claimError.message)
-    return NextResponse.json({ ok: true, request: claimed ?? null })
+    return NextResponse.json({
+      ok: true,
+      request: claimed ? { id: claimed.id, url: claimed.url, road_fees_eur: (claimed.road_fees_eur as number | null | undefined) ?? null } : null,
+    })
   }
 
   return NextResponse.json({ ok: false, errors: ['Action inconnue'] }, { status: 400 })

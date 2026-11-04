@@ -14,6 +14,8 @@ export interface PlaquetteRequest {
   created_at: string
   status: PlaquetteStatus
   url: string
+  /** Frais de mise à la route saisis avec la demande, en euros (null = aucun). */
+  road_fees_eur: number | null
   ref: string | null
   title: string | null
   /** 'claude-code' quand le contenu a été rédigé, 'generique' sinon. */

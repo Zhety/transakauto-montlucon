@@ -9,7 +9,7 @@ export async function listPlaquetteRequests(): Promise<PlaquetteQueueState> {
   const [{ data: rows, error }, { data: members }, { data: worker }] = await Promise.all([
     admin
       .from('plaquettes')
-      .select('id, created_at, status, url, ref, title, agent, note, error, pdf_path, pdf_filename, requested_by, started_at, finished_at')
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(30),
     admin.from('members').select('id, first_name, last_name'),
@@ -45,6 +45,7 @@ export async function listPlaquetteRequests(): Promise<PlaquetteQueueState> {
         created_at: row.created_at as string,
         status: row.status as PlaquetteStatus,
         url: row.url as string,
+        road_fees_eur: (row.road_fees_eur as number | null | undefined) ?? null,
         ref: (row.ref as string | null) ?? null,
         title: (row.title as string | null) ?? null,
         agent: (row.agent as string | null) ?? null,
