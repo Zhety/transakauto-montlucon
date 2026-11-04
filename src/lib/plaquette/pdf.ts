@@ -223,6 +223,8 @@ function coverPage(agency: Agency, dossier: VehicleDossier, content: BrochureCon
   const ratio = hero?.width && hero?.height ? hero.width / hero.height : 4 / 3
   const imgH = ratio < 1 ? heroH : Math.min(heroH, PAGE_W / ratio)
   const heroStyle: Style = { position: 'absolute', top: 0, left: 0, width: PAGE_W, height: imgH, objectFit: ratio < 1 ? 'contain' : 'cover' }
+  // Le titre se pose dans la bande noire sous la photo ; s'il n'y a pas de bande, il reste en bas, sur le dégradé.
+  const titlePos: Style = heroH - imgH >= mm(22) ? { top: imgH + mm(3.5) } : { bottom: mm(9) }
   const stats = buildStats(dossier)
   const price = dossier.priceEur
   const fees = dossier.feesEur
@@ -281,9 +283,8 @@ function coverPage(agency: Agency, dossier: VehicleDossier, content: BrochureCon
             h(Stop, { offset: '0%', stopColor: '#000000', stopOpacity: 0.62 }),
             h(Stop, { offset: '24%', stopColor: '#000000', stopOpacity: 0 }),
             h(Stop, { offset: '55%', stopColor: '#000000', stopOpacity: 0 }),
-            h(Stop, { offset: '82%', stopColor: C.night, stopOpacity: 0.55 }),
-            h(Stop, { offset: '93%', stopColor: C.night, stopOpacity: 0.93 }),
-            h(Stop, { offset: '100%', stopColor: C.night, stopOpacity: 0.97 }),
+            h(Stop, { offset: '85%', stopColor: '#000000', stopOpacity: 0.45 }),
+            h(Stop, { offset: '100%', stopColor: '#000000', stopOpacity: 0.9 }),
           ),
         ),
         h(Rect, { x: 0, y: 0, width: PAGE_W, height: imgH, fill: 'url(#shade)' }),
@@ -296,7 +297,7 @@ function coverPage(agency: Agency, dossier: VehicleDossier, content: BrochureCon
       ),
       h(
         View,
-        { style: { position: 'absolute', left: mm(14), right: mm(14), bottom: mm(9) } },
+        { style: { position: 'absolute', left: mm(14), right: mm(14), ...titlePos } },
         h(Text, { style: { color: C.pinkLight, fontSize: 7.5, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: mm(2) } }, `Véhicule d'occasion · Réf. ${dossier.ref}`),
         h(Text, { style: { color: '#ffffff', fontSize: 25, fontWeight: 800, textTransform: 'uppercase', lineHeight: 1.05, letterSpacing: 0.2 } }, content.headline),
         content.subtitle ? h(Text, { style: { color: '#ffffff', opacity: 0.85, fontSize: 11, fontWeight: 500, marginTop: mm(2.5), lineHeight: 1.3 } }, content.subtitle) : null,
