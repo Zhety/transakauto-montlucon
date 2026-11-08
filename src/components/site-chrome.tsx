@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { CITY_PAGES, PAGE_LINKS } from '@/lib/landing-pages'
 import { NAV, SITE } from '@/lib/site'
 import logo from '../../public/transakauto-logo.png'
 
@@ -73,9 +74,16 @@ export function SiteFooter() {
             </li>
             <li>
               <Link href="/reprise" className="transition-colors hover:text-accent">
-                Demande de reprise
+                Rachat et reprise
               </Link>
             </li>
+            {['/depot-vente-voiture-montlucon', '/vendre-voiture-credit-loa-montlucon'].map((path) => (
+              <li key={path}>
+                <Link href={path} className="transition-colors hover:text-accent">
+                  {PAGE_LINKS[path].label}
+                </Link>
+              </li>
+            ))}
             <li>
               <a href="/#process" className="transition-colors hover:text-accent">
                 Comment ça marche
@@ -113,6 +121,15 @@ export function SiteFooter() {
 
         <div>
           <h3 className="text-sm font-semibold text-white">Zone d&apos;intervention</h3>
+          <ul className="mt-4 space-y-2.5 text-sm">
+            {CITY_PAGES.map((page) => (
+              <li key={page.slug}>
+                <Link href={`/${page.slug}`} className="transition-colors hover:text-accent">
+                  {page.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
           <p className="mt-4 text-sm leading-relaxed">{SITE.areas.join(', ')}.</p>
         </div>
       </div>

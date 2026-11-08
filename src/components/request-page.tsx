@@ -1,6 +1,13 @@
 import Link from 'next/link'
+import { Breadcrumbs } from '@/components/breadcrumbs'
+import { ContentSections } from '@/components/content-sections'
+import { FaqList } from '@/components/faq-list'
+import { JsonLd } from '@/components/json-ld'
 import { LeadForm } from '@/components/lead-form'
+import { RelatedLinks } from '@/components/related-links'
+import type { ContentSection } from '@/lib/landing-pages'
 import type { LeadIntent } from '@/lib/lead'
+import { AGENCY_ID, absoluteUrl, breadcrumbJsonLd, faqJsonLd, type FaqItem } from '@/lib/seo'
 import { SITE } from '@/lib/site'
 
 export interface RequestPageProps {
@@ -13,30 +20,60 @@ export interface RequestPageProps {
   steps: Array<{ title: string; body: string }>
   /** Lien vers l'autre parcours, pour les visiteurs arrivés au mauvais endroit. */
   alternate: { href: string; label: string; hint: string }
+  /** Chemin de la page et libellé du fil d'Ariane. */
+  path: string
+  breadcrumb: string
+  /** Texte de référencement, sous le formulaire : il ne retarde pas la conversion. */
+  sections?: ContentSection[]
+  faq?: FaqItem[]
+  related?: string[]
 }
 
-export function RequestPage({ intent, eyebrow, title, intro, benefits, steps, alternate }: RequestPageProps) {
+export function RequestPage({
+  intent,
+  eyebrow,
+  title,
+  intro,
+  benefits,
+  steps,
+  alternate,
+  path,
+  breadcrumb,
+  sections = [],
+  faq = [],
+  related = [],
+}: RequestPageProps) {
+  const crumbs = [
+    { name: 'Accueil', path: '/' },
+    { name: breadcrumb, path },
+  ]
+
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'Service',
-            name: title,
-            description: intro,
-            serviceType: intent === 'estimation' ? "Estimation de véhicule d'occasion" : "Reprise de véhicule d'occasion",
-            provider: { '@type': 'AutoDealer', name: SITE.name, '@id': `${SITE.url}/#agence` },
-            areaServed: SITE.areas.map((area) => ({ '@type': 'Place', name: area })),
-            offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR', availability: 'https://schema.org/InStock' },
-          }),
+      <JsonLd
+        data={{
+          '@graph': [
+            {
+              '@type': 'Service',
+              '@id': `${absoluteUrl(path)}#service`,
+              name: title,
+              description: intro,
+              serviceType: intent === 'estimation' ? "Estimation de véhicule d'occasion" : "Reprise de véhicule d'occasion",
+              url: absoluteUrl(path),
+              provider: { '@type': 'AutoDealer', name: SITE.name, '@id': AGENCY_ID },
+              areaServed: SITE.areas.map((area) => ({ '@type': 'Place', name: area })),
+              offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR', availability: 'https://schema.org/InStock' },
+            },
+            breadcrumbJsonLd(crumbs),
+            ...(faq.length > 0 ? [faqJsonLd(faq, path)] : []),
+          ],
         }}
       />
 
       <section className="border-b border-line bg-ink text-white">
         <div className="mx-auto max-w-6xl px-5 py-9 sm:py-12">
-          <p className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3.5 py-1.5 text-xs font-medium uppercase tracking-[0.16em] text-white/70">
+          <Breadcrumbs crumbs={crumbs} />
+          <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-3.5 py-1.5 text-xs font-medium uppercase tracking-[0.16em] text-white/70">
             <span className="size-1.5 rounded-full bg-accent" />
             {eyebrow}
           </p>
@@ -113,6 +150,25 @@ export function RequestPage({ intent, eyebrow, title, intro, benefits, steps, al
           </aside>
         </div>
       </section>
+
+      {(sections.length > 0 || faq.length > 0) && (
+        <div className="mx-auto max-w-6xl px-5 pb-4 pt-10 sm:pt-14">
+          <article className="max-w-3xl">
+            <ContentSections sections={sections} />
+
+            {faq.length > 0 && (
+              <section id="faq" className="mt-16 scroll-mt-24">
+                <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Questions fréquentes</h2>
+                <FaqList items={faq} />
+              </section>
+            )}
+          </article>
+
+          <div className="mt-20">
+            <RelatedLinks paths={related} />
+          </div>
+        </div>
+      )}
     </>
   )
 }

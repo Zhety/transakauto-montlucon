@@ -21,7 +21,17 @@ export const SITE = {
     country: 'France',
   },
 
+  /** Coordonnées GPS de l'adresse (Base Adresse Nationale). */
+  geo: { latitude: 46.36267, longitude: 2.599386 },
+
   hours: 'Du mardi au vendredi, 10h - 18h30 · Samedi, 10h - 17h',
+
+  /**
+   * Pages qui présentent l'agence ailleurs sur le web (données structurées
+   * `sameAs`). Y ajouter l'URL de la fiche Google Business Profile et de la
+   * page Facebook dès qu'elles existent.
+   */
+  profiles: ['https://annonces.transakauto.com/concessionnaire-voiture-occasion/agence-montlucon'],
 
   // Mentions légales
   siret: 'SIRET 939 743 308 00016',

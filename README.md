@@ -99,6 +99,34 @@ Sur Vercel le système de fichiers est en lecture seule : l'archive `.leads.json
   destination directe aux annonces.
 - Mentions légales et politique de confidentialité sont en place — Google Ads les exige.
 
+## Référencement (SEO)
+
+- **Pages de référencement** : une page par recherche locale qui compte (dépôt-vente, crédit /
+  LOA, Guéret, Saint-Amand-Montrond, Commentry). Leur contenu vit dans
+  [`src/lib/landing-pages.ts`](src/lib/landing-pages.ts) ; ajouter un objet suffit, la route
+  (`src/app/(site)/[slug]`), le sitemap, le pied de page et les liens « Voir aussi » suivent.
+  Chaque texte doit rester **propre à sa page** : des pages « ville » identiques au nom près sont
+  traitées par Google comme des pages satellites et pénalisent tout le site.
+- `/estimation` et `/reprise` ont un texte et une FAQ **sous** le formulaire : le référencement
+  ne retarde pas la conversion des visiteurs venus des annonces.
+- Titres et H1 contiennent la ville ; chaque page a son URL canonique, un fil d'Ariane et des
+  données structurées (`AutoDealer` sur l'accueil avec coordonnées GPS, `Service`,
+  `BreadcrumbList`, `FAQPage`). Helpers dans [`src/lib/seo.ts`](src/lib/seo.ts).
+- Sitemap : dates `lastmod` fixes, à mettre à jour quand le texte d'une page change.
+- `SITE.profiles` ([`src/lib/site.ts`](src/lib/site.ts)) : y ajouter l'URL de la fiche Google
+  Business Profile et de la page Facebook dès qu'elles existent.
+
+Hors du code, ce qui pèse le plus sur le classement local :
+
+1. **Fiche Google Business Profile** de l'agence, vérifiée, avec le lien vers le site, les
+   horaires, des photos, et des **avis clients** sollicités après chaque vente.
+2. **Google Search Console** : propriété « domaine » vérifiée par un enregistrement TXT chez
+   OVH, puis sitemap `sitemap.xml` soumis.
+3. **Liens entrants** : la page agence du réseau
+   (annonces.transakauto.com/concessionnaire-voiture-occasion/agence-montlucon) ne renvoie pas
+   vers ce site, à demander au réseau ; même chose pour la boutique Leboncoin, PagesJaunes et
+   la page Facebook. Nom, adresse et téléphone identiques partout.
+
 ## Anti-spam
 
 Champ leurre caché (`website`) dans le formulaire : s'il est rempli, la route répond `ok` sans

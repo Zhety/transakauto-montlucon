@@ -1,15 +1,21 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { CtaBanner } from '@/components/cta-banner'
+import { FaqList } from '@/components/faq-list'
+import { JsonLd } from '@/components/json-ld'
+import { CITY_PAGES, PAGE_LINKS } from '@/lib/landing-pages'
+import { AGENCY_ID, MAPS_URL, faqJsonLd, pageMetadata } from '@/lib/seo'
 import { SITE } from '@/lib/site'
 
-export const metadata: Metadata = {
-  title: { absolute: "Vendre sa voiture à Montluçon et dans l'Allier | Transakauto" },
+export const metadata: Metadata = pageMetadata({
+  title: "Vendre sa voiture à Montluçon et dans l'Allier | Transakauto",
   description:
-    "Estimation gratuite sous 24h, annonce, visites et paiement sécurisé : nous vendons votre voiture à votre place. Montluçon, Allier, Cher et Creuse.",
-  alternates: { canonical: '/' },
-  openGraph: { title: "Vendre sa voiture à Montluçon et dans l'Allier | Transakauto", description: "Estimation gratuite sous 24h, annonce, visites et paiement sécurisé : nous vendons votre voiture à votre place. Montluçon, Allier, Cher et Creuse.", url: '/', images: ['/opengraph-image'] },
-  twitter: { title: "Vendre sa voiture à Montluçon et dans l'Allier | Transakauto", description: "Estimation gratuite sous 24h, annonce, visites et paiement sécurisé : nous vendons votre voiture à votre place. Montluçon, Allier, Cher et Creuse." },
-}
+    'Estimation gratuite sous 24h, annonce, visites et paiement sécurisé : nous vendons votre voiture à votre place. Montluçon, Allier, Cher et Creuse.',
+  path: '/',
+})
+
+/** Villes de la zone qui ont leur propre page. */
+const CITY_LINKS = new Map(CITY_PAGES.map((page) => [page.places?.[0], `/${page.slug}`]))
 
 const STATS = [
   { value: '24h', label: 'Réponse à votre demande' },
@@ -95,6 +101,14 @@ const FAQ = [
     a: "La carte grise à votre nom, votre pièce d'identité, le dernier contrôle technique de moins de six mois, le carnet d'entretien et les doubles des clés. Nous nous chargeons du certificat de situation administrative.",
   },
   {
+    q: "Quelle différence avec un dépôt-vente ?",
+    a: "Comme un dépôt-vente, nous vendons votre voiture à votre place. Mais elle reste chez vous : vous continuez à l'utiliser jusqu'à la vente, et vous ne payez rien si elle n'est pas vendue.",
+  },
+  {
+    q: "Intervenez-vous en dehors de Montluçon ?",
+    a: "Oui. Nous accompagnons les vendeurs de Montluçon et de son agglomération, mais aussi de Commentry, Néris-les-Bains, Saint-Amand-Montrond, Guéret et plus largement de l'Allier, du Cher et de la Creuse. La demande et l'estimation se font à distance.",
+  },
+  {
     q: "Mon véhicule est ancien ou a beaucoup de kilomètres, est-ce un problème ?",
     a: "Non. Nous traitons tous les véhicules en état de rouler, du petit citadin au véhicule haut de gamme, y compris ceux à fort kilométrage. Le prix est simplement ajusté en conséquence. En revanche, nous ne reprenons pas les véhicules en panne ou immobilisés.",
   },
@@ -116,7 +130,8 @@ export default function HomePage() {
           </p>
 
           <h1 className="mt-7 max-w-3xl text-4xl font-semibold leading-[1.08] tracking-tight sm:text-6xl">
-            Vendez votre voiture au <span className="text-accent">meilleur prix</span>, sans en gérer une seule étape.
+            Vendez votre voiture à Montluçon au <span className="text-accent">meilleur prix</span>, sans en gérer une
+            seule étape.
           </h1>
 
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
@@ -225,6 +240,21 @@ export default function HomePage() {
             </Link>
           </article>
         </div>
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          {['/depot-vente-voiture-montlucon', '/vendre-voiture-credit-loa-montlucon'].map((path) => (
+            <Link
+              key={path}
+              href={path}
+              className="group rounded-2xl border border-line bg-card p-6 transition-colors hover:border-ink"
+            >
+              <span className="text-[17px] font-semibold tracking-tight group-hover:text-accent-ink">
+                {PAGE_LINKS[path].label} →
+              </span>
+              <span className="mt-1.5 block text-[15px] leading-relaxed text-graphite">{PAGE_LINKS[path].hint}</span>
+            </Link>
+          ))}
+        </div>
       </section>
 
       {/* Process */}
@@ -306,11 +336,51 @@ export default function HomePage() {
             intervenons à {SITE.areas.slice(0, -1).join(', ')} et dans {SITE.areas.at(-1)}.
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
-            {SITE.areas.map((area) => (
-              <span key={area} className="rounded-full border border-line px-4 py-1.5 text-sm text-graphite">
-                {area}
-              </span>
-            ))}
+            {SITE.areas.map((area) => {
+              const href = CITY_LINKS.get(area)
+              return href ? (
+                <Link
+                  key={area}
+                  href={href}
+                  className="rounded-full border border-ink px-4 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-ink hover:text-white"
+                >
+                  {area}
+                </Link>
+              ) : (
+                <span key={area} className="rounded-full border border-line px-4 py-1.5 text-sm text-graphite">
+                  {area}
+                </span>
+              )
+            })}
+          </div>
+
+          <div className="mt-10 grid gap-6 border-t border-line pt-8 sm:grid-cols-3">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-graphite">Nous trouver</h3>
+              <p className="mt-2 text-[15px] leading-relaxed">
+                {SITE.address.street}
+                <br />
+                {SITE.address.postalCode} {SITE.address.city}
+              </p>
+              <a
+                href={MAPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex text-sm font-medium text-accent-ink underline underline-offset-4"
+              >
+                Itinéraire vers l&apos;agence
+              </a>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-graphite">Horaires</h3>
+              <p className="mt-2 text-[15px] leading-relaxed">{SITE.hours}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-graphite">Téléphone</h3>
+              <a href={`tel:${SITE.phone.replace(/\s/g, '')}`} className="mt-2 block text-[15px] font-medium">
+                {SITE.phoneDisplay}
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -319,119 +389,80 @@ export default function HomePage() {
       <section id="faq" className="mx-auto max-w-3xl scroll-mt-20 px-5 pb-20 sm:pb-24">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Questions fréquentes</h2>
 
-        <div className="mt-10 divide-y divide-line border-y border-line">
-          {FAQ.map((item) => (
-            <details key={item.q} className="group py-5">
-              <summary className="flex cursor-pointer list-none items-start justify-between gap-6 text-[17px] font-medium">
-                {item.q}
-                <span
-                  aria-hidden
-                  className="mt-1 shrink-0 text-muted transition-transform group-open:rotate-45"
-                >
-                  +
-                </span>
-              </summary>
-              <p className="mt-3 text-[15px] leading-relaxed text-graphite">{item.a}</p>
-            </details>
-          ))}
-        </div>
+        <FaqList items={FAQ} />
       </section>
 
-      {/* CTA final */}
-      <section className="mx-auto max-w-6xl px-5 pb-4">
-        <div className="rounded-2xl bg-ink px-7 py-14 text-center text-white sm:px-12">
-          <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-            Combien vaut votre voiture aujourd&apos;hui ?
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/70">
-            Deux minutes pour remplir le formulaire, une réponse sous 24h ouvrées. Gratuit, et sans aucun
-            engagement de votre part.
-          </p>
-          <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link
-              href="/estimation"
-              className="inline-flex items-center justify-center rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-white transition-transform hover:-translate-y-px"
-            >
-              Estimer ma voiture
-            </Link>
-            <Link
-              href="/reprise"
-              className="inline-flex items-center justify-center rounded-full border border-white/25 px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:border-white"
-            >
-              Demander une reprise
-            </Link>
-          </div>
-        </div>
-      </section>
+      <CtaBanner />
 
       {/* Données structurées : fiche établissement + FAQ dépliable dans Google. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@graph': [
-              {
-                '@type': 'AutoDealer',
-                '@id': `${SITE.url}/#agence`,
-                name: SITE.name,
-                legalName: SITE.legalName,
-                url: SITE.url,
-                telephone: SITE.phone,
-                email: SITE.email,
-                image: `${SITE.url}/opengraph-image`,
-                priceRange: 'Commission au succès',
-                description:
-                  "Agence d'intermédiation automobile : estimation, vente accompagnée et reprise de véhicules d'occasion à Montluçon, Saint-Amand-Montrond, Guéret et dans l'Allier.",
-                address: {
-                  '@type': 'PostalAddress',
-                  streetAddress: SITE.address.street,
-                  postalCode: SITE.address.postalCode,
-                  addressLocality: SITE.address.city,
-                  addressRegion: 'Auvergne-Rhône-Alpes',
-                  addressCountry: 'FR',
+      <JsonLd
+        data={{
+          '@graph': [
+            {
+              '@type': 'AutoDealer',
+              '@id': AGENCY_ID,
+              name: SITE.name,
+              legalName: SITE.legalName,
+              url: SITE.url,
+              telephone: SITE.phone,
+              email: SITE.email,
+              logo: `${SITE.url}/logo-transakauto-montlucon.png`,
+              image: `${SITE.url}/opengraph-image`,
+              brand: { '@type': 'Brand', name: 'Transakauto' },
+              priceRange: 'Commission au succès',
+              description:
+                "Agence d'intermédiation automobile : estimation, vente accompagnée et reprise de véhicules d'occasion à Montluçon, Saint-Amand-Montrond, Guéret et dans l'Allier.",
+              address: {
+                '@type': 'PostalAddress',
+                streetAddress: SITE.address.street,
+                postalCode: SITE.address.postalCode,
+                addressLocality: SITE.address.city,
+                addressRegion: 'Auvergne-Rhône-Alpes',
+                addressCountry: 'FR',
+              },
+              geo: { '@type': 'GeoCoordinates', latitude: SITE.geo.latitude, longitude: SITE.geo.longitude },
+              hasMap: MAPS_URL,
+              sameAs: SITE.profiles,
+              openingHoursSpecification: [
+                {
+                  '@type': 'OpeningHoursSpecification',
+                  dayOfWeek: ['Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+                  opens: '10:00',
+                  closes: '18:30',
                 },
-                openingHoursSpecification: [
-                  {
-                    '@type': 'OpeningHoursSpecification',
-                    dayOfWeek: ['Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-                    opens: '10:00',
-                    closes: '18:30',
-                  },
-                  {
-                    '@type': 'OpeningHoursSpecification',
-                    dayOfWeek: ['Saturday'],
-                    opens: '10:00',
-                    closes: '17:00',
-                  },
-                ],
-                areaServed: SITE.areas.map((area) => ({ '@type': 'Place', name: area })),
-                makesOffer: [
-                  {
-                    '@type': 'Offer',
-                    name: "Estimation gratuite d'un véhicule d'occasion",
-                    url: `${SITE.url}/estimation`,
-                    price: '0',
-                    priceCurrency: 'EUR',
-                  },
-                  {
-                    '@type': 'Offer',
-                    name: "Reprise et rachat d'un véhicule d'occasion",
-                    url: `${SITE.url}/reprise`,
-                  },
-                ],
-              },
-              {
-                '@type': 'FAQPage',
-                '@id': `${SITE.url}/#faq`,
-                mainEntity: FAQ.map((item) => ({
-                  '@type': 'Question',
-                  name: item.q,
-                  acceptedAnswer: { '@type': 'Answer', text: item.a },
-                })),
-              },
-            ],
-          }),
+                {
+                  '@type': 'OpeningHoursSpecification',
+                  dayOfWeek: ['Saturday'],
+                  opens: '10:00',
+                  closes: '17:00',
+                },
+              ],
+              areaServed: SITE.areas.map((area) => ({ '@type': 'Place', name: area })),
+              makesOffer: [
+                {
+                  '@type': 'Offer',
+                  name: "Estimation gratuite d'un véhicule d'occasion",
+                  url: `${SITE.url}/estimation`,
+                  price: '0',
+                  priceCurrency: 'EUR',
+                },
+                {
+                  '@type': 'Offer',
+                  name: "Reprise et rachat d'un véhicule d'occasion",
+                  url: `${SITE.url}/reprise`,
+                },
+              ],
+            },
+            {
+              '@type': 'WebSite',
+              '@id': `${SITE.url}/#site`,
+              url: SITE.url,
+              name: SITE.name,
+              inLanguage: 'fr-FR',
+              publisher: { '@id': AGENCY_ID },
+            },
+            faqJsonLd(FAQ, '/'),
+          ],
         }}
       />
     </>
