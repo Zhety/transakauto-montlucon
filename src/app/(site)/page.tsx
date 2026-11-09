@@ -242,7 +242,12 @@ export default function HomePage() {
         </div>
 
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
-          {['/depot-vente-voiture-montlucon', '/vendre-voiture-credit-loa-montlucon'].map((path) => (
+          {[
+            '/vendre-sa-voiture-rapidement-montlucon',
+            '/depot-vente-voiture-montlucon',
+            '/vendre-voiture-credit-loa-montlucon',
+            '/voiture-occasion-montlucon',
+          ].map((path) => (
             <Link
               key={path}
               href={path}

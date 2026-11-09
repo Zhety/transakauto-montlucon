@@ -101,11 +101,13 @@ Sur Vercel le système de fichiers est en lecture seule : l'archive `.leads.json
 
 ## Référencement (SEO)
 
-- **Pages de référencement** : une page par recherche locale qui compte (dépôt-vente, crédit /
-  LOA, Guéret, Saint-Amand-Montrond, Commentry). Leur contenu vit dans
+- **Pages de référencement** : une page par recherche locale qui compte (vente rapide,
+  dépôt-vente, crédit / LOA, voitures d'occasion, guide des documents, Guéret,
+  Saint-Amand-Montrond, Commentry). Leur contenu vit dans
   [`src/lib/landing-pages.ts`](src/lib/landing-pages.ts) ; ajouter un objet suffit, la route
   (`src/app/(site)/[slug]`), le sitemap, le pied de page et les liens « Voir aussi » suivent.
-  Chaque texte doit rester **propre à sa page** : des pages « ville » identiques au nom près sont
+  Chaque objet a un `kind` : `service`, `city` (liste « Zone d'intervention ») ou `guide`
+  (données structurées `Article`). Chaque texte doit rester **propre à sa page** : des pages « ville » identiques au nom près sont
   traitées par Google comme des pages satellites et pénalisent tout le site.
 - `/estimation` et `/reprise` ont un texte et une FAQ **sous** le formulaire : le référencement
   ne retarde pas la conversion des visiteurs venus des annonces.

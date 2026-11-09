@@ -15,10 +15,16 @@ export interface ContentSection {
   paragraphs?: string[]
   bullets?: string[]
   table?: { head: [string, string, string]; rows: Array<[string, string, string]> }
+  /** Lien d'action sous la section (interne, ou externe : nouvel onglet). */
+  link?: { href: string; label: string }
 }
+
+/** service : une offre de l'agence ; city : une ville de la zone ; guide : un article pratique. */
+export type LandingKind = 'service' | 'city' | 'guide'
 
 export interface LandingPageContent {
   slug: string
+  kind: LandingKind
   /** Date de dernière mise à jour du contenu (sitemap). */
   updated: string
   metaTitle: string
@@ -32,8 +38,10 @@ export interface LandingPageContent {
   faq: FaqItem[]
   related: string[]
   serviceType: string
-  /** Lieux desservis mis en avant (données structurées). */
+  /** Lieux desservis mis en avant (données structurées). Pour une ville, le premier est son nom. */
   places?: string[]
+  /** Bouton principal du bandeau, à la place de « Estimer ma voiture gratuitement ». */
+  primaryCta?: { href: string; label: string }
 }
 
 /** Libellés des liens internes entre pages (« Voir aussi »). */
@@ -47,6 +55,18 @@ export const PAGE_LINKS: Record<string, { label: string; hint: string }> = {
   '/vendre-voiture-credit-loa-montlucon': {
     label: 'Voiture en crédit ou en LOA',
     hint: 'Le solde est réglé dans la vente, vous encaissez la différence.',
+  },
+  '/vendre-sa-voiture-rapidement-montlucon': {
+    label: 'Vendre sa voiture rapidement',
+    hint: 'Reprise ferme sous 24h ou vente en 22 jours en moyenne.',
+  },
+  '/voiture-occasion-montlucon': {
+    label: "Acheter une voiture d'occasion",
+    hint: 'Des voitures de particuliers, avec la sécurité d’une agence.',
+  },
+  '/documents-pour-vendre-sa-voiture': {
+    label: 'Documents pour vendre sa voiture',
+    hint: 'La liste complète, et les démarches après la vente.',
   },
   '/vendre-sa-voiture-gueret': { label: 'Vendre sa voiture à Guéret', hint: 'Guéret et toute la Creuse.' },
   '/vendre-sa-voiture-saint-amand-montrond': {
@@ -68,6 +88,7 @@ const SERVICES = [
 export const LANDING_PAGES: LandingPageContent[] = [
   {
     slug: 'depot-vente-voiture-montlucon',
+    kind: 'service',
     updated: '2026-11-09',
     metaTitle: 'Dépôt-vente voiture à Montluçon | Transakauto',
     metaDescription:
@@ -144,6 +165,7 @@ export const LANDING_PAGES: LandingPageContent[] = [
 
   {
     slug: 'vendre-voiture-credit-loa-montlucon',
+    kind: 'service',
     updated: '2026-11-09',
     metaTitle: 'Vendre sa voiture en crédit ou LOA à Montluçon | Transakauto',
     metaDescription:
@@ -216,6 +238,7 @@ export const LANDING_PAGES: LandingPageContent[] = [
 
   {
     slug: 'vendre-sa-voiture-gueret',
+    kind: 'city',
     updated: '2026-11-09',
     metaTitle: 'Vendre sa voiture à Guéret et en Creuse | Transakauto',
     metaDescription:
@@ -272,6 +295,7 @@ export const LANDING_PAGES: LandingPageContent[] = [
 
   {
     slug: 'vendre-sa-voiture-saint-amand-montrond',
+    kind: 'city',
     updated: '2026-11-09',
     metaTitle: 'Vendre sa voiture à Saint-Amand-Montrond | Transakauto',
     metaDescription:
@@ -331,6 +355,7 @@ export const LANDING_PAGES: LandingPageContent[] = [
 
   {
     slug: 'vendre-sa-voiture-commentry',
+    kind: 'city',
     updated: '2026-11-09',
     metaTitle: 'Vendre sa voiture à Commentry | Transakauto Montluçon',
     metaDescription:
@@ -367,7 +392,7 @@ export const LANDING_PAGES: LandingPageContent[] = [
           'Les doubles des clés',
         ],
         paragraphs: [
-          'Nous nous chargeons du certificat de situation administrative et de la déclaration de cession.',
+          'Nous nous chargeons du certificat de situation administrative et de la déclaration de cession. De votre côté, prévoyez :',
         ],
       },
     ],
@@ -387,6 +412,236 @@ export const LANDING_PAGES: LandingPageContent[] = [
     ],
     related: ['/estimation', '/reprise', '/vendre-voiture-credit-loa-montlucon'],
   },
+
+  {
+    slug: 'vendre-sa-voiture-rapidement-montlucon',
+    kind: 'service',
+    updated: '2026-11-09',
+    metaTitle: 'Vendre sa voiture rapidement à Montluçon | Transakauto',
+    metaDescription:
+      'Besoin de vendre vite ? Offre de reprise ferme sous 24h ou vente accompagnée en 22 jours en moyenne. Paiement sécurisé et démarches incluses, à Montluçon.',
+    label: 'Vendre sa voiture rapidement',
+    eyebrow: 'Vente rapide · Montluçon',
+    title: 'Vendre sa voiture rapidement à Montluçon, sans la brader',
+    intro:
+      "Un déménagement, un nouveau véhicule à financer, un crédit à solder : quand il faut vendre vite, la tentation est d'accepter la première offre venue. Nous vous proposons deux voies rapides, et nous vous aidons à choisir celle qui vous rapporte le plus.",
+    serviceType: 'Reprise et vente rapide de véhicule d’occasion',
+    sections: [
+      {
+        title: 'Vendre vite : trois solutions, trois niveaux de prix',
+        table: {
+          head: ['Solution', 'Délai', 'Prix obtenu'],
+          rows: [
+            ['Vendre seul entre particuliers', 'Imprévisible : de quelques jours à plusieurs mois', 'Le meilleur, si vous trouvez le bon acheteur'],
+            ['Rachat ou reprise par un professionnel', 'Quelques jours', 'Plus bas : la marge du professionnel est déduite'],
+            ['Vente accompagnée Transakauto', '22 jours en moyenne', 'Le prix du marché entre particuliers'],
+          ],
+        },
+      },
+      {
+        title: 'Le « rachat cash » : ce qu’il faut savoir',
+        paragraphs: [
+          "Les offres de rachat « cash » promettent un paiement immédiat. En pratique, la loi interdit à un professionnel de payer en espèces au-delà de 1 000 € : « cash » veut donc dire virement ou chèque de banque, comme partout ailleurs.",
+          "Leur vrai atout est la rapidité. Leur limite est le prix : le professionnel qui rachète doit préparer, garantir et revendre la voiture, et il déduit tout cela de son offre. Sur un véhicule récent, l'écart avec une vente entre particuliers se compte souvent en milliers d'euros.",
+          'Avant d’accepter une offre, demandez-la par écrit, vérifiez qui rachète, et comparez-la à une estimation de vente : vous saurez exactement combien coûte la rapidité.',
+        ],
+      },
+      {
+        title: 'Notre reprise ferme : la voie la plus rapide',
+        bullets: [
+          'Une proposition chiffrée sous 24h ouvrées',
+          'Une offre ferme, valable plusieurs jours, sans engagement',
+          'Un paiement sécurisé, après vérification du véhicule et des documents',
+          'Le crédit ou la LOA soldé directement dans la transaction',
+          'Carte grise, déclaration de cession et certificat de situation administrative pris en charge',
+        ],
+        link: { href: '/reprise', label: 'Demander une offre de reprise' },
+      },
+      {
+        title: 'La vente accompagnée : rapide, et au meilleur prix',
+        paragraphs: [
+          "Si vous pouvez attendre quelques semaines, la vente accompagnée rapporte davantage : 22 jours en moyenne pour un véhicule au bon prix. Pendant ce temps, vous gardez votre voiture et vous continuez à l'utiliser, et vous ne payez rien si elle n'est pas vendue.",
+          "Vous hésitez entre les deux ? Nous chiffrons la reprise et la vente : vous voyez l'écart, et vous choisissez.",
+        ],
+        link: { href: '/estimation', label: 'Demander une estimation gratuite' },
+      },
+      {
+        title: 'Cinq conseils pour vendre plus vite',
+        bullets: [
+          'Fixer le bon prix dès le départ : une voiture trop chère reste en ligne, puis finit bradée',
+          'Passer le contrôle technique avant la mise en vente : il est obligatoire au-delà de quatre ans et doit dater de moins de six mois',
+          "Rassembler le carnet d'entretien et les factures",
+          "Nettoyer l'intérieur et l'extérieur avant les photos",
+          'Retrouver les doubles des clés',
+        ],
+        link: { href: '/documents-pour-vendre-sa-voiture', label: 'Voir la liste des documents' },
+      },
+    ],
+    faq: [
+      {
+        q: 'Combien de temps faut-il pour vendre sa voiture ?',
+        a: "Avec une reprise ferme, notre offre arrive sous 24h ouvrées et la transaction peut être bouclée en quelques jours. En vente accompagnée, comptez 22 jours en moyenne pour un véhicule au bon prix.",
+      },
+      {
+        q: 'Peut-on être payé en espèces ?',
+        a: "Pas au-delà de 1 000 € : la loi interdit à un professionnel de régler en espèces une somme supérieure. Le paiement se fait par un moyen sécurisé, après vérification du véhicule et des documents.",
+      },
+      {
+        q: 'La reprise rapporte-t-elle moins qu’une vente ?',
+        a: "En général un peu moins, car le professionnel doit préparer et revendre la voiture. Si vous pouvez attendre quelques semaines, la vente accompagnée rapporte davantage. Nous vous chiffrons les deux pour que vous choisissiez.",
+      },
+    ],
+    related: ['/reprise', '/estimation', '/depot-vente-voiture-montlucon'],
+  },
+
+  {
+    slug: 'voiture-occasion-montlucon',
+    kind: 'service',
+    updated: '2026-11-09',
+    metaTitle: "Acheter une voiture d'occasion à Montluçon | Transakauto",
+    metaDescription:
+      "Voitures d'occasion de particuliers, vendues par notre agence de Montluçon : dossier vérifié, garantie 3 mois incluse, paiement sécurisé. Recherche sur demande.",
+    label: "Voitures d'occasion",
+    eyebrow: "Achat · Voitures d'occasion",
+    title: "Acheter une voiture d'occasion à Montluçon, en toute confiance",
+    intro:
+      "Les voitures que nous vendons appartiennent à des particuliers qui nous ont confié leur vente. Vous achetez la voiture d'un particulier, avec l'accompagnement d'une agence : dossier vérifié, garantie incluse et paiement sécurisé.",
+    serviceType: "Vente de véhicules d'occasion",
+    primaryCta: { href: SITE.stockUrl, label: 'Voir les voitures disponibles' },
+    sections: [
+      {
+        title: 'Le prix d’un particulier, la sécurité d’une agence',
+        paragraphs: [
+          "Acheter à un particulier, c'est souvent un bon prix, mais aussi des risques : historique incertain, papiers incomplets, aucun interlocuteur en cas de problème. Acheter en garage, c'est plus sûr, mais plus cher.",
+          "Avec Transakauto Montluçon, vous achetez la voiture d'un particulier dont les papiers ont été vérifiés par l'agence, avec un conseiller qui vous accompagne de l'essai jusqu'à la remise des clés.",
+        ],
+      },
+      {
+        title: 'Ce qui est compris',
+        bullets: [
+          'Une garantie de 3 mois moteur, boîte et pont, extensible à 6, 12 ou 24 mois',
+          'Le nettoyage du véhicule avant la remise des clés',
+          '20 € de carburant pour vos premiers kilomètres',
+          'Un paiement par virement, sur une plateforme de paiement sécurisée',
+          'Un dossier administratif vérifié : certificat de situation administrative, contrôle technique, certificat de cession',
+        ],
+        paragraphs: ["Compris dans les frais d'intermédiation, indiqués sur chaque annonce :"],
+      },
+      {
+        title: 'Les voitures disponibles',
+        paragraphs: [
+          "Notre stock évolue au fil des ventes que les particuliers nous confient. Les véhicules disponibles sont en ligne sur la page de l'agence, sur le site du réseau Transakauto.",
+        ],
+        link: { href: SITE.stockUrl, label: 'Voir les voitures disponibles' },
+      },
+      {
+        title: 'Vous cherchez un modèle précis ?',
+        paragraphs: [
+          'Dites-nous ce que vous cherchez : marque, modèle, budget, kilométrage. Le réseau Transakauto recherche pour vous, et nous vous prévenons dès qu’un véhicule correspondant est disponible.',
+          `Appelez-nous au ${SITE.phoneDisplay} ou écrivez-nous à ${SITE.email}.`,
+        ],
+      },
+      {
+        title: 'Vous avez une voiture à vendre ?',
+        paragraphs: [
+          'Nous pouvons vendre votre voiture actuelle pour vous, ou vous en faire une offre de reprise. Demandez une estimation gratuite : elle vous aide à boucler votre budget.',
+        ],
+        link: { href: '/estimation', label: 'Estimer ma voiture actuelle' },
+      },
+    ],
+    faq: [
+      {
+        q: "D'où viennent vos voitures ?",
+        a: "De particuliers de Montluçon et de la région, qui nous ont confié la vente de leur véhicule. Les papiers sont vérifiés par l'agence avant la vente.",
+      },
+      {
+        q: 'Les voitures sont-elles garanties ?',
+        a: 'Oui : une garantie de 3 mois moteur, boîte et pont est comprise. Vous pouvez l’étendre à 6, 12 ou 24 mois.',
+      },
+      {
+        q: 'Comment se fait le paiement ?',
+        a: 'Par virement, sur une plateforme de paiement sécurisée. Les clés vous sont remises une fois le paiement confirmé.',
+      },
+      {
+        q: 'Peut-on essayer la voiture avant d’acheter ?',
+        a: 'Oui. Votre conseiller organise l’essai avec vous et répond à vos questions sur l’historique du véhicule.',
+      },
+    ],
+    related: ['/estimation', '/reprise', '/vendre-voiture-credit-loa-montlucon'],
+  },
+
+  {
+    slug: 'documents-pour-vendre-sa-voiture',
+    kind: 'guide',
+    updated: '2026-11-09',
+    metaTitle: 'Documents pour vendre sa voiture : la liste | Transakauto',
+    metaDescription:
+      'Carte grise, contrôle technique, certificat de cession, non-gage, code de cession : tous les documents pour vendre votre voiture, et les démarches après la vente.',
+    label: 'Documents pour vendre sa voiture',
+    eyebrow: 'Guide · Démarches',
+    title: 'Documents pour vendre sa voiture : la liste complète',
+    intro:
+      "Vendre une voiture demande quelques papiers, et une démarche à faire après la vente. Voici la liste complète, à quoi sert chaque document, et ce que nous prenons en charge quand vous vendez avec Transakauto Montluçon.",
+    serviceType: 'Guide des démarches de vente d’un véhicule',
+    sections: [
+      {
+        title: 'Avant la vente : les documents à réunir',
+        bullets: [
+          'La carte grise (certificat d’immatriculation) à votre nom.',
+          'Un contrôle technique de moins de six mois, obligatoire si la voiture a plus de quatre ans.',
+          "Un certificat de situation administrative de moins de quinze jours, dit certificat de non-gage : il prouve que la voiture n'est ni gagée ni frappée d'opposition.",
+          "Le carnet d'entretien et les factures : ils ne sont pas obligatoires, mais ils rassurent l'acheteur et défendent votre prix.",
+          'Les doubles des clés.',
+        ],
+      },
+      {
+        title: 'Le jour de la vente',
+        bullets: [
+          'Le certificat de cession (cerfa n° 15776), rempli en deux exemplaires et signé par le vendeur et l’acheteur.',
+          'La carte grise barrée, avec la mention « Vendu le », la date et l’heure de la vente, et votre signature. Elle est remise à l’acheteur.',
+          'Le code de cession, obtenu en déclarant la vente en ligne : l’acheteur en a besoin pour faire établir la carte grise à son nom.',
+        ],
+      },
+      {
+        title: 'Après la vente : déclarer la cession',
+        paragraphs: [
+          "Vous devez déclarer la vente dans les quinze jours, en ligne sur le site de l'ANTS. Tant que ce n'est pas fait, les amendes liées à la voiture peuvent encore vous être adressées.",
+          "Prévenez aussi votre assureur : le contrat est suspendu automatiquement le lendemain de la vente, à zéro heure, et vous pouvez ensuite le résilier.",
+        ],
+      },
+      {
+        title: 'Les cas particuliers',
+        bullets: [
+          "Voiture en crédit avec un gage : le gage doit être levé par l'organisme de crédit avant la vente.",
+          "Voiture en LOA : elle appartient à la société de financement, il faut d'abord lever l'option d'achat.",
+          'Carte grise perdue ou volée : il faut demander un duplicata en ligne avant de vendre.',
+        ],
+        link: { href: '/vendre-voiture-credit-loa-montlucon', label: 'Vendre une voiture en crédit ou en LOA' },
+      },
+      {
+        title: 'Ce que nous faisons pour vous',
+        paragraphs: [
+          "Quand vous vendez avec Transakauto Montluçon, nous demandons le certificat de situation administrative, préparons le certificat de cession et effectuons la déclaration de cession dans les délais. Vous n'avez qu'à fournir votre carte grise, votre pièce d'identité et le contrôle technique.",
+        ],
+        link: { href: '/estimation', label: 'Demander une estimation gratuite' },
+      },
+    ],
+    faq: [
+      {
+        q: 'Le contrôle technique est-il obligatoire pour vendre ?',
+        a: 'Oui, si la voiture a plus de quatre ans : le procès-verbal doit dater de moins de six mois le jour de la vente.',
+      },
+      {
+        q: 'Combien de temps a-t-on pour déclarer la vente ?',
+        a: "Quinze jours, en ligne sur le site de l'ANTS. Avec Transakauto Montluçon, nous nous en chargeons.",
+      },
+      {
+        q: 'Où obtenir le certificat de non-gage ?',
+        a: "En ligne et gratuitement, sur les sites officiels du ministère de l'Intérieur, avec les informations de la carte grise. Il doit dater de moins de quinze jours le jour de la vente.",
+      },
+    ],
+    related: ['/estimation', '/vendre-sa-voiture-rapidement-montlucon', '/vendre-voiture-credit-loa-montlucon'],
+  },
 ]
 
 export function getLandingPage(slug: string): LandingPageContent | undefined {
@@ -394,4 +649,4 @@ export function getLandingPage(slug: string): LandingPageContent | undefined {
 }
 
 /** Pages « ville », pour le pied de page et la zone d'intervention de l'accueil. */
-export const CITY_PAGES = LANDING_PAGES.filter((page) => page.slug.startsWith('vendre-sa-voiture-'))
+export const CITY_PAGES = LANDING_PAGES.filter((page) => page.kind === 'city')

@@ -18,25 +18,42 @@ export function LandingPage({ page }: { page: LandingPageContent }) {
     { name: 'Accueil', path: '/' },
     { name: page.label, path },
   ]
+  const primary = page.primaryCta ?? { href: '/estimation', label: 'Estimer ma voiture gratuitement' }
+  const primaryClass =
+    'inline-flex items-center justify-center rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-white transition-transform hover:-translate-y-px'
+
+  // Un guide est un article ; les autres pages décrivent une offre de l'agence.
+  const mainEntity =
+    page.kind === 'guide'
+      ? {
+          '@type': 'Article',
+          '@id': `${absoluteUrl(path)}#article`,
+          headline: page.title,
+          description: page.metaDescription,
+          url: absoluteUrl(path),
+          inLanguage: 'fr-FR',
+          datePublished: page.updated,
+          dateModified: page.updated,
+          image: `${SITE.url}/opengraph-image`,
+          author: { '@type': 'Organization', '@id': AGENCY_ID, name: SITE.name },
+          publisher: { '@type': 'Organization', '@id': AGENCY_ID, name: SITE.name },
+        }
+      : {
+          '@type': 'Service',
+          '@id': `${absoluteUrl(path)}#service`,
+          name: page.title,
+          description: page.intro,
+          serviceType: page.serviceType,
+          url: absoluteUrl(path),
+          provider: { '@type': 'AutoDealer', '@id': AGENCY_ID, name: SITE.name },
+          areaServed: (page.places ?? SITE.areas).map((name) => ({ '@type': 'Place', name })),
+        }
 
   return (
     <>
       <JsonLd
         data={{
-          '@graph': [
-            {
-              '@type': 'Service',
-              '@id': `${absoluteUrl(path)}#service`,
-              name: page.title,
-              description: page.intro,
-              serviceType: page.serviceType,
-              url: absoluteUrl(path),
-              provider: { '@type': 'AutoDealer', '@id': AGENCY_ID, name: SITE.name },
-              areaServed: (page.places ?? SITE.areas).map((name) => ({ '@type': 'Place', name })),
-            },
-            breadcrumbJsonLd(crumbs),
-            faqJsonLd(page.faq, path),
-          ],
+          '@graph': [mainEntity, breadcrumbJsonLd(crumbs), faqJsonLd(page.faq, path)],
         }}
       />
 
@@ -54,12 +71,15 @@ export function LandingPage({ page }: { page: LandingPageContent }) {
           <h1 className="mt-5 max-w-3xl text-[30px] font-semibold leading-[1.12] tracking-tight sm:text-5xl">{page.title}</h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/70 sm:text-lg">{page.intro}</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/estimation"
-              className="inline-flex items-center justify-center rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-white transition-transform hover:-translate-y-px"
-            >
-              Estimer ma voiture gratuitement
-            </Link>
+            {primary.href.startsWith('http') ? (
+              <a href={primary.href} target="_blank" rel="noopener" className={primaryClass}>
+                {primary.label}
+              </a>
+            ) : (
+              <Link href={primary.href} className={primaryClass}>
+                {primary.label}
+              </Link>
+            )}
             <Link
               href="/reprise"
               className="inline-flex items-center justify-center rounded-full border border-white/25 px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:border-white"

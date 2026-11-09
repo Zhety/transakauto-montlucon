@@ -1,4 +1,19 @@
+import Link from 'next/link'
 import type { ContentSection } from '@/lib/landing-pages'
+
+function SectionLink({ href, label }: { href: string; label: string }) {
+  const className =
+    'mt-5 inline-flex items-center gap-1.5 text-[15px] font-semibold text-accent-ink underline underline-offset-4'
+  return href.startsWith('http') ? (
+    <a href={href} target="_blank" rel="noopener" className={className}>
+      {label} →
+    </a>
+  ) : (
+    <Link href={href} className={className}>
+      {label} →
+    </Link>
+  )
+}
 
 /** Sections de texte des pages de référencement : titre, paragraphes, liste, tableau. */
 export function ContentSections({ sections }: { sections: ContentSection[] }) {
@@ -51,6 +66,8 @@ export function ContentSections({ sections }: { sections: ContentSection[] }) {
               </table>
             </div>
           )}
+
+          {section.link && <SectionLink {...section.link} />}
         </section>
       ))}
     </div>

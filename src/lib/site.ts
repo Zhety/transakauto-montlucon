@@ -33,6 +33,9 @@ export const SITE = {
    */
   profiles: ['https://annonces.transakauto.com/concessionnaire-voiture-occasion/agence-montlucon'],
 
+  /** Voitures en vente à l'agence : page agence du site du réseau. */
+  stockUrl: 'https://annonces.transakauto.com/concessionnaire-voiture-occasion/agence-montlucon',
+
   // Mentions légales
   siret: 'SIRET 939 743 308 00016',
   rcs: 'RCS Montluçon 939 743 308',

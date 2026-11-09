@@ -77,7 +77,13 @@ export function SiteFooter() {
                 Rachat et reprise
               </Link>
             </li>
-            {['/depot-vente-voiture-montlucon', '/vendre-voiture-credit-loa-montlucon'].map((path) => (
+            {[
+              '/vendre-sa-voiture-rapidement-montlucon',
+              '/depot-vente-voiture-montlucon',
+              '/vendre-voiture-credit-loa-montlucon',
+              '/voiture-occasion-montlucon',
+              '/documents-pour-vendre-sa-voiture',
+            ].map((path) => (
               <li key={path}>
                 <Link href={path} className="transition-colors hover:text-accent">
                   {PAGE_LINKS[path].label}

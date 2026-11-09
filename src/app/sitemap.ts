@@ -27,7 +27,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: absoluteUrl(`/${page.slug}`),
       lastModified: page.updated,
       changeFrequency: 'monthly' as const,
-      priority: page.slug.startsWith('vendre-sa-voiture-') ? 0.7 : 0.8,
+      priority: page.kind === 'service' ? 0.8 : page.kind === 'city' ? 0.7 : 0.6,
     })),
   ]
 }
